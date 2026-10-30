@@ -1,0 +1,4 @@
+build/
+QLZip.xcodeproj/xcuserdata/
+QLZip.xcodeproj/project.xcworkspace/xcuserdata/
+.DS_Store
