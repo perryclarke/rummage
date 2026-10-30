@@ -74,7 +74,7 @@ targets:
       path: PreviewExtension/QLZipPreview.entitlements
       properties:
         com.apple.security.app-sandbox: true
-        com.apple.security.files.user-selected.read-only: true
+        com.apple.security.files.user-selected.read-write: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.perryclarke.QLZip.Preview

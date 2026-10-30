@@ -59,7 +59,69 @@ struct ArchiveReader: Sendable {
             current += 1
             if isCancelled() { return false }
         }
+        return try writeData(a, to: destination, isCancelled: isCancelled)
+    }
 
+    struct Target: Sendable {
+        let entry: ArchiveEntry
+        let url: URL
+    }
+
+    /// Writes each target entry to its URL in a single pass over the archive, recreating files,
+    /// folders and symlinks with their permissions and modification dates. Parent folders must exist.
+    func extract(_ targets: [Target], of listing: ArchiveListing) throws {
+        let a = try open(raw: listing.isRaw)
+        defer { archive_read_free(a) }
+
+        let fm = FileManager.default
+        var pending = Dictionary(targets.map { ($0.entry.index, $0) }, uniquingKeysWith: { $1 })
+        var symlinks: [(url: URL, destination: String)] = []
+        var folderDates: [(url: URL, date: Date)] = []
+        var entry: OpaquePointer?
+        var index = 0
+        while !pending.isEmpty {
+            let r = archive_read_next_header(a, &entry)
+            if r == ARCHIVE_EOF { break }
+            if r < ARCHIVE_WARN { throw error(a) }
+            defer { index += 1 }
+            guard let entry, let target = pending.removeValue(forKey: index) else { continue }
+
+            switch target.entry.kind {
+            case .directory:
+                try fm.createDirectory(at: target.url, withIntermediateDirectories: true)
+                if let date = target.entry.modified { folderDates.append((target.url, date)) }
+            case .symlink:
+                if let destination = symlinkDestination(entry) { symlinks.append((target.url, destination)) }
+            case .file:
+                _ = try writeData(a, to: target.url, isCancelled: { false })
+                var attributes: [FileAttributeKey: Any] = [:]
+                let permissions = archive_entry_perm(entry) & 0o777
+                // Some zips (e.g. made on Windows) carry no permissions; keep the default then.
+                if permissions & 0o400 != 0 { attributes[.posixPermissions] = permissions }
+                if let date = target.entry.modified { attributes[.modificationDate] = date }
+                try? fm.setAttributes(attributes, ofItemAtPath: target.url.path)
+            case .other:
+                break
+            }
+        }
+        if let missing = pending.values.first {
+            throw ArchiveError(message: "“\(missing.entry.components.last ?? "")” wasn’t found in the archive.")
+        }
+
+        // Symlinks are created last so that one can't redirect where a later entry is written.
+        for link in symlinks {
+            try? fm.createSymbolicLink(atPath: link.url.path, withDestinationPath: link.destination)
+        }
+        // Adding contents changes a folder's date, so restore folder dates at the very end.
+        for folder in folderDates {
+            try? fm.setAttributes([.modificationDate: folder.date], ofItemAtPath: folder.url.path)
+        }
+    }
+
+    // MARK: - Private
+
+    /// Writes the data of the current entry to `destination`. Returns false if `isCancelled` became true.
+    private func writeData(_ a: OpaquePointer, to destination: URL, isCancelled: () -> Bool) throws -> Bool {
         FileManager.default.createFile(atPath: destination.path, contents: nil)
         let handle = try FileHandle(forWritingTo: destination)
         defer { try? handle.close() }
@@ -77,7 +139,11 @@ struct ArchiveReader: Sendable {
         return true
     }
 
-    // MARK: - Private
+    private func symlinkDestination(_ entry: OpaquePointer) -> String? {
+        if let p = archive_entry_symlink_utf8(entry) { return String(cString: p) }
+        if let p = archive_entry_symlink(entry) { return String(decoding: Data(bytes: p, count: strlen(p)), as: UTF8.self) }
+        return nil
+    }
 
     private func list(raw: Bool) throws -> ArchiveListing {
         let a = try open(raw: raw)

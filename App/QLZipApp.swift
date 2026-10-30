@@ -7,7 +7,7 @@ struct QLZipApp: App {
             VStack(alignment: .leading, spacing: 12) {
                 Text("QLZip is installed")
                     .font(.title2.bold())
-                Text("Select a .zip, .tar, .tar.gz, .tar.bz2 or .tar.xz file in Finder and press Space to browse its contents.")
+                Text("Select a .zip, .tar, .tar.gz, .tar.bz2 or .tar.xz file in Finder and press Space to browse its contents. Click a file to preview it; double-click an item to uncompress it.")
                 Text("If Quick Look still shows the built-in preview, open System Settings › General › Login Items & Extensions › Quick Look and make sure QLZip Preview is enabled.")
                     .foregroundStyle(.secondary)
             }

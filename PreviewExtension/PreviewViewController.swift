@@ -11,6 +11,7 @@ final class PreviewViewController: NSViewController, QLPreviewingController {
     private var root = ArchiveNode(name: "", path: [])
 
     private let outlineView = NSOutlineView()
+    private let statusBar = StatusBar()
     private let detailContainer = NSView()
     private var previewView: NSView?
     private let messageView = MessageView()
@@ -19,6 +20,9 @@ final class PreviewViewController: NSViewController, QLPreviewingController {
         .appendingPathComponent("QLZip-\(UUID().uuidString)", isDirectory: true)
     private var extractionToken: CancellationToken?
     private var didSetInitialDivider = false
+    private var folderChooser: NSOpenPanel?
+    /// Identifies the latest uncompress, so an earlier one finishing doesn't overwrite its status.
+    private var uncompressCount = 0
 
     deinit {
         try? FileManager.default.removeItem(at: workDirectory)
@@ -51,19 +55,27 @@ final class PreviewViewController: NSViewController, QLPreviewingController {
         outlineView.style = .sourceList
         outlineView.usesAutomaticRowHeights = false
         outlineView.rowHeight = 22
-        outlineView.allowsMultipleSelection = false
+        outlineView.allowsMultipleSelection = true
         outlineView.dataSource = self
         outlineView.delegate = self
         outlineView.target = self
-        outlineView.doubleAction = #selector(toggleExpanded)
+        outlineView.doubleAction = #selector(uncompressClickedItems)
+        let menu = NSMenu()
+        menu.delegate = self
+        outlineView.menu = menu
 
         detailContainer.addSubview(messageView)
         messageView.pinEdges(to: detailContainer)
 
-        split.addArrangedSubview(scroll)
+        let listPane = NSStackView(views: [scroll, statusBar])
+        listPane.orientation = .vertical
+        listPane.alignment = .width
+        listPane.spacing = 0
+
+        split.addArrangedSubview(listPane)
         split.addArrangedSubview(detailContainer)
         split.setHoldingPriority(.defaultLow + 10, forSubviewAt: 0)
-        scroll.widthAnchor.constraint(greaterThanOrEqualToConstant: 200).isActive = true
+        listPane.widthAnchor.constraint(greaterThanOrEqualToConstant: 200).isActive = true
         detailContainer.widthAnchor.constraint(greaterThanOrEqualToConstant: 300).isActive = true
 
         view = split
@@ -76,7 +88,21 @@ final class PreviewViewController: NSViewController, QLPreviewingController {
             didSetInitialDivider = true
             split.setPosition(320, ofDividerAt: 0)
         }
-        view.window?.makeFirstResponder(outlineView)
+        disableQuickLookDoubleClick()
+    }
+
+    /// Quick Look opens the archive in its default app (Archive Utility, which extracts everything)
+    /// when anything in a preview is double-clicked. Here a double-click uncompresses the clicked
+    /// item instead, so turn off Quick Look's recognizer on the views hosting this preview.
+    private func disableQuickLookDoubleClick() {
+        var ancestor = view.superview
+        while let current = ancestor {
+            for case let recognizer as NSClickGestureRecognizer in current.gestureRecognizers
+            where recognizer.numberOfClicksRequired == 2 {
+                recognizer.isEnabled = false
+            }
+            ancestor = current.superview
+        }
     }
 
     func preparePreviewOfFile(at url: URL) async throws {
@@ -139,6 +165,15 @@ final class PreviewViewController: NSViewController, QLPreviewingController {
         extractionToken?.cancel()
         extractionToken = nil
 
+        if outlineView.selectedRowIndexes.count > 1 {
+            let nodes = Self.outermost(outlineView.selectedRowIndexes.compactMap { outlineView.item(atRow: $0) as? ArchiveNode })
+            showMessage(
+                icon: NSImage(named: NSImage.multipleDocumentsName),
+                title: "\(nodes.count.formatted()) items",
+                detail: Self.format(bytes: nodes.reduce(0) { $0 + $1.totalSize })
+            )
+            return
+        }
         guard let node = outlineView.item(atRow: outlineView.selectedRow) as? ArchiveNode else {
             showSummary()
             return
@@ -230,14 +265,80 @@ final class PreviewViewController: NSViewController, QLPreviewingController {
         }
     }
 
-    @objc private func toggleExpanded() {
+    // MARK: - Uncompressing
+
+    /// The items a double-click or the context menu acts on: the whole selection if the clicked
+    /// row is part of it, otherwise just the clicked row.
+    private func clickedNodes() -> [ArchiveNode] {
         let row = outlineView.clickedRow
-        guard row >= 0, let node = outlineView.item(atRow: row) as? ArchiveNode, node.isDirectory else { return }
-        if outlineView.isItemExpanded(node) {
-            outlineView.collapseItem(node)
-        } else {
-            outlineView.expandItem(node)
+        guard row >= 0 else { return [] }
+        let selection = outlineView.selectedRowIndexes
+        let rows = selection.contains(row) ? selection : IndexSet(integer: row)
+        return Self.outermost(rows.compactMap { outlineView.item(atRow: $0) as? ArchiveNode })
+    }
+
+    @objc private func uncompressClickedItems() {
+        chooseFolder(toUncompress: clickedNodes())
+    }
+
+    private func chooseFolder(toUncompress nodes: [ArchiveNode]) {
+        guard let archiveURL, let listing, !nodes.isEmpty, folderChooser == nil else { return }
+
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = true
+        panel.prompt = "Uncompress"
+        panel.message = "Uncompress \(Self.describe(nodes))"
+        panel.directoryURL = archiveURL.deletingLastPathComponent()
+        folderChooser = panel
+        panel.begin { [weak self] response in
+            guard let self else { return }
+            self.folderChooser = nil
+            guard response == .OK, let folder = panel.url else { return }
+            self.uncompress(nodes, into: folder, archiveURL: archiveURL, listing: listing)
         }
+    }
+
+    private func uncompress(_ nodes: [ArchiveNode], into folder: URL, archiveURL: URL, listing: ArchiveListing) {
+        let uncompressor = Uncompressor(nodes: nodes, into: folder)
+        let description = nodes.count == 1 ? "“\(nodes[0].name)”" : "\(nodes.count.formatted()) items"
+        uncompressCount += 1
+        let id = uncompressCount
+        statusBar.show("Uncompressing \(description)…", busy: true)
+
+        Task { @MainActor [weak self] in
+            let result = await Task.detached(priority: .userInitiated) {
+                Result { try uncompressor.run(archive: archiveURL, listing: listing) }
+            }.value
+            guard let self, self.uncompressCount == id else { return }
+            switch result {
+            case .success:
+                var status = "Uncompressed \(description) to “\(FileManager.default.displayName(atPath: folder.path))”"
+                if uncompressor.skippedCount > 0 {
+                    let count = uncompressor.skippedCount
+                    status += " (skipped \(count.formatted()) encrypted \(count == 1 ? "file" : "files"))"
+                }
+                self.statusBar.show(status, busy: false)
+            case .failure(let error):
+                self.statusBar.show("Couldn’t uncompress \(description): \(error.localizedDescription)", busy: false)
+            }
+        }
+    }
+
+    /// Drops nodes inside a folder that's also in `nodes`, since the folder includes them.
+    private static func outermost(_ nodes: [ArchiveNode]) -> [ArchiveNode] {
+        let paths = Set(nodes.map(\.path))
+        return nodes.filter { node in
+            !(1..<max(node.path.count, 1)).contains { paths.contains(Array(node.path.prefix($0))) }
+        }
+    }
+
+    /// “a.txt”; “a.txt”, “b.png”, and “c”; or “a.txt”, “b.png”, and 3 more items.
+    private static func describe(_ nodes: [ArchiveNode]) -> String {
+        let names = nodes.map { "“\($0.name)”" }
+        guard names.count > 3 else { return ListFormatter.localizedString(byJoining: names) }
+        return ListFormatter.localizedString(byJoining: names.prefix(2) + ["\((names.count - 2).formatted()) more items"])
     }
 
     // MARK: - Helpers
@@ -351,6 +452,16 @@ extension PreviewViewController: NSOutlineViewDataSource, NSOutlineViewDelegate 
     }
 }
 
+extension PreviewViewController: NSMenuDelegate {
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        menu.removeAllItems()
+        let nodes = clickedNodes()
+        guard !nodes.isEmpty else { return }
+        let title = nodes.count == 1 ? "Uncompress “\(nodes[0].name)”…" : "Uncompress \(nodes.count.formatted()) Items…"
+        menu.addItem(withTitle: title, action: #selector(uncompressClickedItems), keyEquivalent: "").target = self
+    }
+}
+
 // MARK: - Supporting types
 
 private extension NSUserInterfaceItemIdentifier {
@@ -409,6 +520,52 @@ private final class MessageView: NSView {
         titleLabel.stringValue = title
         detailLabel.stringValue = detail ?? ""
         detailLabel.isHidden = detail == nil
+        spinner.isHidden = !busy
+        busy ? spinner.startAnimation(nil) : spinner.stopAnimation(nil)
+    }
+}
+
+/// A line under the file list reporting the progress of an uncompress; hidden until the first one.
+private final class StatusBar: NSView {
+    private let spinner = NSProgressIndicator()
+    private let label = NSTextField(labelWithString: "")
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        isHidden = true
+        spinner.style = .spinning
+        spinner.controlSize = .small
+        label.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+        label.textColor = .secondaryLabelColor
+        label.lineBreakMode = .byTruncatingMiddle
+        label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+
+        let separator = NSBox()
+        separator.boxType = .separator
+        let stack = NSStackView(views: [spinner, label])
+        stack.spacing = 6
+        stack.edgeInsets = NSEdgeInsets(top: 6, left: 10, bottom: 6, right: 10)
+        for view in [separator, stack] {
+            view.translatesAutoresizingMaskIntoConstraints = false
+            addSubview(view)
+        }
+        NSLayoutConstraint.activate([
+            separator.topAnchor.constraint(equalTo: topAnchor),
+            separator.leadingAnchor.constraint(equalTo: leadingAnchor),
+            separator.trailingAnchor.constraint(equalTo: trailingAnchor),
+            stack.topAnchor.constraint(equalTo: separator.bottomAnchor),
+            stack.leadingAnchor.constraint(equalTo: leadingAnchor),
+            stack.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor),
+            stack.bottomAnchor.constraint(equalTo: bottomAnchor),
+        ])
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+
+    func show(_ text: String, busy: Bool) {
+        isHidden = false
+        label.stringValue = text
+        toolTip = text
         spinner.isHidden = !busy
         busy ? spinner.startAnimation(nil) : spinner.stopAnimation(nil)
     }

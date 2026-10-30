@@ -47,5 +47,8 @@ mode_t archive_entry_filetype(struct archive_entry *);
 time_t archive_entry_mtime(struct archive_entry *);
 int archive_entry_mtime_is_set(struct archive_entry *);
 int archive_entry_is_encrypted(struct archive_entry *);
+mode_t archive_entry_perm(struct archive_entry *);
+const char *archive_entry_symlink(struct archive_entry *);
+const char *archive_entry_symlink_utf8(struct archive_entry *);
 
 #endif

@@ -7,6 +7,20 @@ tree, and the right side previews whichever file is selected.
 Supported archives: `.zip` (and zip-based files), `.tar`, `.tar.gz`/`.tgz`, `.tar.bz2`, `.tar.xz`,
 and bare `.gz`/`.bz2`/`.xz` files. Archives are read with the system's libarchive.
 
+Browse with the mouse: Quick Look keeps keyboard focus in Finder, so ↑/↓ move between files in
+Finder rather than within the archive. (They do work in `qlmanage -p`.)
+
+## Uncompressing items
+
+Double-click an item in the list, or Control-click it and choose **Uncompress**, then pick a
+destination folder. Folders come out with their contents. ⌘- or ⇧-click to select several items,
+then Control-click the selection to uncompress them together. Existing files are never replaced
+(a numbered name like "notes 2.txt" is used instead); permissions, dates and symlinks are kept, and
+encrypted entries are skipped. Progress and the result appear under the list.
+
+By default Quick Look opens the whole archive in Archive Utility when a preview is double-clicked;
+QLZip turns that off inside its own preview so that a double-click affects only the item clicked.
+
 ## Previews
 
 Selecting a file extracts just that entry to the extension's sandboxed temp folder and renders it:
@@ -62,6 +76,7 @@ is a quick way to test without Finder.
 - `PreviewExtension/ArchiveReader.swift` – libarchive wrapper: listing and single-entry extraction
 - `PreviewExtension/ArchiveTree.swift` – builds the folder tree from flat archive paths
 - `PreviewExtension/PreviewViewController.swift` – split view UI, selection, extraction
+- `PreviewExtension/Uncompressor.swift` – copies selected items into a folder the user chooses
 - `PreviewExtension/EntryPreview.swift` – per-type preview views
 - `PreviewExtension/SyntaxHighlighter.swift` – runs highlight.js and converts its output to text ranges
 - `PreviewExtension/SyntaxTheme.swift` – colors for each highlight.js scope
