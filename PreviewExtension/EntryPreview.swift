@@ -22,7 +22,8 @@ enum EntryPreview {
         if type.conforms(to: .image), let view = imageView(url) {
             return view
         }
-        if type.conforms(to: .audiovisualContent) {
+        // Some code extensions collide with media types (.ts is also MPEG transport stream video).
+        if type.conforms(to: .audiovisualContent), !looksLikeText(url) {
             return playerView(url)
         }
         if let documentType = attributedDocumentType(for: type),
@@ -75,14 +76,23 @@ enum EntryPreview {
         guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
         defer { try? handle.close() }
         let data = (try? handle.read(upToCount: maxTextBytes + 1)) ?? Data()
-        var string = String(decoding: data.prefix(maxTextBytes), as: UTF8.self)
-        if data.count > maxTextBytes {
-            string += "\n\n… (truncated)"
+        let content = String(decoding: data.prefix(maxTextBytes), as: UTF8.self)
+        let truncated = data.count > maxTextBytes
+        let scroll = textView(NSAttributedString(string: truncated ? content + "\n\n… (truncated)" : content), monospaced: true)
+
+        // Show plain text right away and color it once highlighting finishes in the background.
+        if data.count <= SyntaxHighlighter.maxBytes, let textView = scroll.documentView as? NSTextView {
+            let fileName = url.lastPathComponent
+            Task { [weak textView] in
+                guard let spans = await SyntaxHighlighter.shared.highlight(content, fileName: fileName),
+                      let textView, let storage = textView.textStorage, let font = textView.font else { return }
+                SyntaxTheme.apply(spans, to: storage, font: font)
+            }
         }
-        return textView(NSAttributedString(string: string), monospaced: true)
+        return scroll
     }
 
-    private static func textView(_ text: NSAttributedString, monospaced: Bool) -> NSView {
+    private static func textView(_ text: NSAttributedString, monospaced: Bool) -> NSScrollView {
         let scroll = NSTextView.scrollableTextView()
         let textView = scroll.documentView as! NSTextView
         textView.isEditable = false
