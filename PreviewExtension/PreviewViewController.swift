@@ -190,6 +190,9 @@ final class PreviewViewController: NSViewController, QLPreviewingController {
             showMessage(icon: icon, title: node.name, detail: Self.details(for: node) + "\nNo preview available")
             return
         }
+        (preview as? MarkdownView)?.onCopyLink = { [weak self] in
+            self?.statusBar.show("Link copied; Quick Look can’t open links", busy: false)
+        }
         removePreview()
         messageView.isHidden = true
         detailContainer.addSubview(preview)
@@ -575,7 +578,8 @@ private final class MessageView: NSView {
     }
 }
 
-/// A line under the file list reporting the progress of an uncompress; hidden until the first one.
+/// A line under the file list reporting the progress of an uncompress, or a copied link; hidden
+/// until the first one.
 private final class StatusBar: NSView {
     private let spinner = NSProgressIndicator()
     private let label = NSTextField(labelWithString: "")

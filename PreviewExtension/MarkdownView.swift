@@ -11,6 +11,10 @@ final class MarkdownView: NSView {
 
     private let textView = NSTextView(usingTextLayoutManager: false) // TextKit 1, which supports tables
 
+    /// Called when a link is clicked. The extension sandbox doesn't allow opening URLs, so
+    /// clicking a link copies it instead.
+    var onCopyLink: (() -> Void)?
+
     init?(url: URL) {
         guard let data = try? Data(contentsOf: url), data.count <= Self.maxBytes,
               let rendered = MarkdownRenderer.render(String(decoding: data, as: UTF8.self)) else { return nil }
@@ -18,6 +22,7 @@ final class MarkdownView: NSView {
 
         textView.isEditable = false
         textView.isSelectable = true
+        textView.delegate = self
         textView.drawsBackground = false
         textView.textContainerInset = NSSize(width: 20, height: 16)
         textView.isVerticallyResizable = true
@@ -59,6 +64,16 @@ final class MarkdownView: NSView {
                 SyntaxTheme.apply(shifted, to: storage, font: MarkdownRenderer.codeFont)
             }
         }
+    }
+}
+
+extension MarkdownView: NSTextViewDelegate {
+    func textView(_ textView: NSTextView, clickedOnLink link: Any, at charIndex: Int) -> Bool {
+        let address = (link as? URL)?.absoluteString ?? String(describing: link)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(address, forType: .string)
+        onCopyLink?()
+        return true
     }
 }
 
@@ -104,7 +119,8 @@ struct MarkdownRenderer {
     private var blockIdentity: Int?
     private var startedListItems = Set<Int>()
     private var previousListDepth = 0
-    private var previousBlockWasBoxed = false
+    /// The code block or table the previous block belonged to.
+    private var previousBox: Int?
     private var tables: [Int: NSTextTable] = [:]
     private var quoteBlocks: [Int: NSTextBlock] = [:]
 
@@ -132,7 +148,10 @@ struct MarkdownRenderer {
         if inline.contains(.emphasized) { font = NSFontManager.shared.convert(font, toHaveTrait: .italicFontMask) }
         if inline.contains(.strikethrough) { attributes[.strikethroughStyle] = NSUnderlineStyle.single.rawValue }
         if inline.contains(.lineBreak) { text = "\u{2028}" } // a hard line break within the paragraph
-        if let link { attributes[.link] = link }
+        if let link {
+            attributes[.link] = link
+            attributes[.toolTip] = link.absoluteString // where it goes, since it can't be opened
+        }
         attributes[.font] = font
 
         if let language = block.codeLanguage {
@@ -162,19 +181,36 @@ struct MarkdownRenderer {
         previousListDepth = listDepth
         // Code blocks and tables have no paragraph spacing of their own (and bottom margins on
         // text blocks are ignored), so space the block after them.
-        let isBoxed = components.first.map { $0.kind.isCodeBlock || $0.kind.isTableCell } ?? false
-        if previousBlockWasBoxed && !isBoxed { paragraph.paragraphSpacingBefore = max(paragraph.paragraphSpacingBefore, 10) }
-        previousBlockWasBoxed = isBoxed
-        for quote in components.reversed() where quote.kind == .blockQuote {
-            textBlocks.append(quoteBlocks[quote.identity] ?? {
-                let block = Self.fullWidthBlock()
-                block.setWidth(3, type: .absoluteValueType, for: .border, edge: .minX)
-                block.setBorderColor(Self.border, for: .minX)
-                block.setWidth(12, type: .absoluteValueType, for: .padding, edge: .minX)
-                quoteBlocks[quote.identity] = block
-                return block
-            }())
-            style.color = .secondaryLabelColor
+        let box: Int? = switch components.first?.kind {
+        case .codeBlock?: components.first?.identity
+        case .tableCell?: components.first(where: \.kind.isTable)?.identity
+        default: nil
+        }
+        if previousBox != nil && box == nil { paragraph.paragraphSpacingBefore = max(paragraph.paragraphSpacingBefore, 10) }
+        let followsOtherBox = previousBox != nil && box != nil && box != previousBox
+        previousBox = box
+        let quotes = components.reversed().filter { $0.kind == .blockQuote }
+        if !quotes.isEmpty { style.color = .secondaryLabelColor }
+        // AppKit throws when it draws a table nested in another text block, so a table in a
+        // quote draws the quote's bar itself (see the table cell case below).
+        if case .tableCell? = components.first?.kind {} else {
+            for quote in quotes {
+                textBlocks.append(quoteBlocks[quote.identity] ?? {
+                    let block = Self.fullWidthBlock()
+                    Self.addQuoteBar(to: block)
+                    quoteBlocks[quote.identity] = block
+                    return block
+                }())
+            }
+        }
+        // Paragraph spacing can't separate two boxes either (e.g. a table right after a code
+        // block), so put an empty paragraph between them.
+        if followsOtherBox {
+            let spacer = NSMutableParagraphStyle()
+            spacer.minimumLineHeight = 10
+            spacer.maximumLineHeight = 10
+            spacer.textBlocks = textBlocks // only the enclosing quotes' blocks at this point
+            output.append(NSAttributedString(string: "\n", attributes: [.paragraphStyle: spacer, .font: Self.bodyFont]))
         }
 
         if let item = components.first(where: \.kind.isListItem), case .listItem(let ordinal) = item.kind,
@@ -228,7 +264,11 @@ struct MarkdownRenderer {
             let table = tables[tableComponent.identity] ?? {
                 let table = NSTextTable()
                 table.numberOfColumns = columns.count
-                table.collapsesBorders = true
+                // Paragraph indents don't move tables, so list indents become a margin. Only the
+                // innermost quote's bar is drawn beside the table; outer quotes add to the margin.
+                let margin = indent + CGFloat(max(quotes.count - 1, 0)) * Self.quoteIndent
+                table.setWidth(margin, type: .absoluteValueType, for: .margin, edge: .minX)
+                if !quotes.isEmpty { Self.addQuoteBar(to: table) }
                 tables[tableComponent.identity] = table
                 return table
             }()
@@ -237,14 +277,23 @@ struct MarkdownRenderer {
                 if case .tableRow(let index) = component.kind { row = index }
             }
             let cell = NSTextTableBlock(table: table, startingRow: row, rowSpan: 1, startingColumn: column, columnSpan: 1)
-            cell.setWidth(1, type: .absoluteValueType, for: .border)
-            cell.setBorderColor(Self.border)
+            // Not collapsesBorders, which ignores the table's own padding (the gap after a quote's
+            // bar): each cell draws its right and bottom edges, the first row and column also the rest.
+            var edges: [NSRectEdge] = [.maxX, .maxY]
+            if column == 0 { edges.append(.minX) }
+            if row == 0 { edges.append(.minY) }
+            for edge in edges {
+                cell.setWidth(1, type: .absoluteValueType, for: .border, edge: edge)
+                cell.setBorderColor(Self.border, for: edge)
+            }
             cell.setWidth(6, type: .absoluteValueType, for: .padding)
             if components.contains(where: { $0.kind == .tableHeaderRow }) {
                 cell.backgroundColor = Self.fill
                 style.font = .boldSystemFont(ofSize: Self.bodyFont.pointSize)
             }
             textBlocks.append(cell)
+            paragraph.headIndent = 0
+            paragraph.firstLineHeadIndent = 0
             paragraph.paragraphSpacing = 0
             if column < columns.count {
                 switch columns[column].alignment {
@@ -259,6 +308,15 @@ struct MarkdownRenderer {
         paragraph.textBlocks = textBlocks
         style.paragraph = paragraph
         return style
+    }
+
+    /// The width of a quote's bar plus the padding after it.
+    private static let quoteIndent: CGFloat = 15
+
+    private static func addQuoteBar(to block: NSTextBlock) {
+        block.setWidth(3, type: .absoluteValueType, for: .border, edge: .minX)
+        block.setBorderColor(border, for: .minX)
+        block.setWidth(quoteIndent - 3, type: .absoluteValueType, for: .padding, edge: .minX)
     }
 
     /// Plain text blocks shrink to their narrowest line unless given a width.
@@ -303,14 +361,6 @@ private extension PresentationIntent.Kind {
     }
     var isTable: Bool {
         if case .table = self { return true }
-        return false
-    }
-    var isTableCell: Bool {
-        if case .tableCell = self { return true }
-        return false
-    }
-    var isCodeBlock: Bool {
-        if case .codeBlock = self { return true }
         return false
     }
 }

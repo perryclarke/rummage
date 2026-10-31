@@ -43,7 +43,9 @@ inside a Quick Look extension, which is why previews are rendered natively. Entr
 
 Markdown is parsed by Foundation (`AttributedString(markdown:)`, GitHub flavored) and laid out
 with TextKit 1 text blocks and tables. Raw HTML is left out, and images show their description,
-since the extension can't load them. Files over 1 MB are shown as plain text.
+since the extension can't load them. The sandbox doesn't let Quick Look extensions open URLs, so
+clicking a link copies it instead (hovering shows where it goes). Files over 1 MB are shown as
+plain text.
 
 Big compressed tarballs have to be decompressed in full just to list them; if that takes more
 than 0.4 s the preview shows "Reading archive…" until the list is ready. Files that iCloud has
