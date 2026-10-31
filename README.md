@@ -103,7 +103,9 @@ The disk image holds `Install QLZip.pkg`. It installs QLZip.app in /Applications
 Quick Look extension for the user installing it, so previews work without opening the app first.
 Signed releases need "Developer ID Application" and "Developer ID Installer" certificates and a
 `notarytool` keychain profile; see the comments at the top of the script for the one-time setup.
-The package and the disk image are each notarized and stapled.
+The package and the disk image are each notarized and stapled. To release a new version, change
+`MARKETING_VERSION` (and the build number, `CURRENT_PROJECT_VERSION`) in `project.yml`; the app,
+the extension, the package and the disk image's name all take it from there.
 
 ## Uninstalling
 

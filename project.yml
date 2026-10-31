@@ -12,6 +12,7 @@ settings:
     CODE_SIGN_IDENTITY: "Apple Development"
     ENABLE_HARDENED_RUNTIME: YES
     SWIFT_VERSION: "6.0"
+    # The version for both the app and the extension (their Info.plists read these).
     MARKETING_VERSION: "1.0"
     CURRENT_PROJECT_VERSION: "1"
     DEAD_CODE_STRIPPING: YES
@@ -27,6 +28,8 @@ targets:
       path: App/Info.plist
       properties:
         CFBundleDisplayName: QLZip
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSApplicationCategoryType: public.app-category.utilities
         NSHumanReadableCopyright: "© 2026 Perry Clarke"
     entitlements:
@@ -53,6 +56,8 @@ targets:
       path: PreviewExtension/Info.plist
       properties:
         CFBundleDisplayName: QLZip Preview
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSExtension:
           NSExtensionPointIdentifier: com.apple.quicklook.preview
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).PreviewViewController
