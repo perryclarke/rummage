@@ -91,13 +91,22 @@ is a quick way to test without Finder.
 
 ## Releasing
 
-`./scripts/release.sh` archives with a Developer ID certificate, notarizes, staples and writes
-`build/release/QLZip.zip`. See the comments at the top of the script for one-time setup
-(Developer ID certificate and a `notarytool` keychain profile).
+```sh
+./scripts/release.sh              # Developer ID–signed, notarized build/release/QLZip-<version>.dmg
+./scripts/release.sh --unsigned   # the same disk image signed for this Mac only, to try the installer
+```
+
+The disk image holds `Install QLZip.pkg`. It installs QLZip.app in /Applications, or in
+~/Applications with "Install for me only" (no administrator password needed), and registers the
+Quick Look extension for the user installing it, so previews work without opening the app first.
+Signed releases need "Developer ID Application" and "Developer ID Installer" certificates and a
+`notarytool` keychain profile; see the comments at the top of the script for the one-time setup.
+The package and the disk image are each notarized and stapled.
 
 ## Layout
 
 - `App/` – minimal host app (Quick Look extensions must ship inside an app)
+- `Installer/` – installer package post-install script and conclusion page (used by `release.sh`)
 - `PreviewExtension/ArchiveReader.swift` – libarchive wrapper: listing and single-entry extraction
 - `PreviewExtension/ArchiveTree.swift` – builds the folder tree from flat archive paths
 - `PreviewExtension/PreviewViewController.swift` – split view UI, selection, extraction

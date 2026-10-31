@@ -1,0 +1,32 @@
+#!/bin/sh
+# Registers the Quick Look extension for the person installing QLZip, so archives preview in
+# Finder without opening the app first. $2 is the install location: /Applications for an install
+# for all users (this script then runs as root), ~/Applications for "Install for me only".
+
+app="$2/QLZip.app"
+[ -d "$app" ] || exit 0
+lsregister=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
+
+# Launch Services and PlugInKit registrations belong to the logged-in user's session, which
+# Installer runs this script outside of (even when it runs as that user), so enter it first.
+as_user() {
+    if [ "$(id -u)" -eq 0 ]; then
+        user=$(stat -f %Su /dev/console)
+        if [ -z "$user" ] || [ "$user" = root ]; then return 0; fi
+        launchctl asuser "$(id -u "$user")" sudo -u "$user" "$@"
+    else
+        launchctl asuser "$(id -u)" "$@"
+    fi
+}
+
+# After this script, Installer registers the app with Launch Services again, which drops any
+# extension registered so far. So register a few seconds later, in the background.
+as_user /bin/sh -c '
+    sleep 5
+    "$0" -f -R "$1"
+    pluginkit -a "$1/Contents/PlugIns/QLZipPreview.appex"
+    pluginkit -e use -i com.perryclarke.QLZip.Preview
+    qlmanage -r
+    qlmanage -r cache
+' "$lsregister" "$app" >/dev/null 2>&1 &
+exit 0
