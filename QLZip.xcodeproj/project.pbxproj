@@ -8,13 +8,17 @@
 
 /* Begin PBXBuildFile section */
 		0E70E6A9ED2B9CD318F40D5D /* Quartz.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8A29C5051AF0A01A1CB146B0 /* Quartz.framework */; };
+		0FF364D1238E8A9A4ADC375D /* FontPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4016F09D45CBC37D49FEC2C /* FontPreviewView.swift */; };
 		179F52BBA13EFDE684631ACE /* highlight.min.js in Resources */ = {isa = PBXBuildFile; fileRef = E1BCF5179164533477A4A3F2 /* highlight.min.js */; };
 		593935485D404D975D3F7468 /* QLZipApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB313ACD071403CA3BB0C45E /* QLZipApp.swift */; };
 		730CCE4BB0F5CD14809CC466 /* EntryPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE54245091C09DF11931BB1A /* EntryPreview.swift */; };
 		7D2D0317CBEA57549B8F10BB /* ArchiveReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AD818756C3E34964D025958 /* ArchiveReader.swift */; };
 		955F616A2AD94CA93558EB13 /* highlightjs-LICENSE.txt in Resources */ = {isa = PBXBuildFile; fileRef = AF04068D589E1FAD97E9DB41 /* highlightjs-LICENSE.txt */; };
+		9B916C95D8226621947F53F6 /* SpreadsheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7F7126312F34B8586E808DC /* SpreadsheetView.swift */; };
+		AC8AB0FA712F74F395B6E583 /* Spreadsheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7BC98C3CC3DB221B95FFC6F /* Spreadsheet.swift */; };
 		B315C7E0D75580F9D85B1254 /* PreviewViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D33A3D0F8FE4828FF28E6EDA /* PreviewViewController.swift */; };
 		CC9806E7EE2B49AD27B508D3 /* SyntaxTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B8E24ED901131748C44083E /* SyntaxTheme.swift */; };
+		D01F050D4DACBC956DDA8AB0 /* XLSXReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8F12B3A1EA95EC7C76337F8 /* XLSXReader.swift */; };
 		D09821E3B651F9C6A351C503 /* Uncompressor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94E41FE042CDFBDE9329B170 /* Uncompressor.swift */; };
 		D9CC5F8EDC85261AFDB4F421 /* SyntaxHighlighter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2EF92D2A3ED56A25C308E7D /* SyntaxHighlighter.swift */; };
 		E113A27CDC6795AD511A4B02 /* ArchiveTree.swift in Sources */ = {isa = PBXBuildFile; fileRef = B495B7F801F601823962E1B4 /* ArchiveTree.swift */; };
@@ -59,14 +63,18 @@
 		9B1D88BBF190C90C0AD3D7F7 /* QLZip.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = QLZip.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		9C3C7ECE492EFC51EB0C44C9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		9D19B06489C108ADC99A3A95 /* QLZipPreview.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = QLZipPreview.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		A8F12B3A1EA95EC7C76337F8 /* XLSXReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XLSXReader.swift; sourceTree = "<group>"; };
 		AB313ACD071403CA3BB0C45E /* QLZipApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QLZipApp.swift; sourceTree = "<group>"; };
 		AF04068D589E1FAD97E9DB41 /* highlightjs-LICENSE.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "highlightjs-LICENSE.txt"; sourceTree = "<group>"; };
 		B2EF92D2A3ED56A25C308E7D /* SyntaxHighlighter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyntaxHighlighter.swift; sourceTree = "<group>"; };
 		B495B7F801F601823962E1B4 /* ArchiveTree.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchiveTree.swift; sourceTree = "<group>"; };
+		C7BC98C3CC3DB221B95FFC6F /* Spreadsheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Spreadsheet.swift; sourceTree = "<group>"; };
+		C7F7126312F34B8586E808DC /* SpreadsheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpreadsheetView.swift; sourceTree = "<group>"; };
 		D33A3D0F8FE4828FF28E6EDA /* PreviewViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewViewController.swift; sourceTree = "<group>"; };
 		E057C34EF644A11659B231FB /* archive_shim.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = archive_shim.h; sourceTree = "<group>"; };
 		E1BCF5179164533477A4A3F2 /* highlight.min.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = highlight.min.js; sourceTree = "<group>"; };
 		EE54245091C09DF11931BB1A /* EntryPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntryPreview.swift; sourceTree = "<group>"; };
+		F4016F09D45CBC37D49FEC2C /* FontPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FontPreviewView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -136,12 +144,16 @@
 				4AD818756C3E34964D025958 /* ArchiveReader.swift */,
 				B495B7F801F601823962E1B4 /* ArchiveTree.swift */,
 				EE54245091C09DF11931BB1A /* EntryPreview.swift */,
+				F4016F09D45CBC37D49FEC2C /* FontPreviewView.swift */,
 				3E14D43F940B8E36E578F13F /* Info.plist */,
 				D33A3D0F8FE4828FF28E6EDA /* PreviewViewController.swift */,
 				7F5F5957BABE195BE0563369 /* QLZipPreview.entitlements */,
+				C7BC98C3CC3DB221B95FFC6F /* Spreadsheet.swift */,
+				C7F7126312F34B8586E808DC /* SpreadsheetView.swift */,
 				B2EF92D2A3ED56A25C308E7D /* SyntaxHighlighter.swift */,
 				6B8E24ED901131748C44083E /* SyntaxTheme.swift */,
 				94E41FE042CDFBDE9329B170 /* Uncompressor.swift */,
+				A8F12B3A1EA95EC7C76337F8 /* XLSXReader.swift */,
 				A09827A33EFA74AFCE071283 /* Vendor */,
 			);
 			path = PreviewExtension;
@@ -272,10 +284,14 @@
 				7D2D0317CBEA57549B8F10BB /* ArchiveReader.swift in Sources */,
 				E113A27CDC6795AD511A4B02 /* ArchiveTree.swift in Sources */,
 				730CCE4BB0F5CD14809CC466 /* EntryPreview.swift in Sources */,
+				0FF364D1238E8A9A4ADC375D /* FontPreviewView.swift in Sources */,
 				B315C7E0D75580F9D85B1254 /* PreviewViewController.swift in Sources */,
+				AC8AB0FA712F74F395B6E583 /* Spreadsheet.swift in Sources */,
+				9B916C95D8226621947F53F6 /* SpreadsheetView.swift in Sources */,
 				D9CC5F8EDC85261AFDB4F421 /* SyntaxHighlighter.swift in Sources */,
 				CC9806E7EE2B49AD27B508D3 /* SyntaxTheme.swift in Sources */,
 				D09821E3B651F9C6A351C503 /* Uncompressor.swift in Sources */,
+				D01F050D4DACBC956DDA8AB0 /* XLSXReader.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

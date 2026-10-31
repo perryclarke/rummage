@@ -118,6 +118,40 @@ struct ArchiveReader: Sendable {
         }
     }
 
+    /// Reads the entries whose paths pass `include` into memory in a single pass, e.g. the XML
+    /// parts of an .xlsx file (which is itself a zip archive).
+    func readEntries(maxTotalBytes: Int, where include: (String) -> Bool) throws -> [String: Data] {
+        let a = try open(raw: false)
+        defer { archive_read_free(a) }
+
+        let bufferSize = 256 * 1024
+        let buffer = UnsafeMutableRawPointer.allocate(byteCount: bufferSize, alignment: 1)
+        defer { buffer.deallocate() }
+        var result: [String: Data] = [:]
+        var total = 0
+        var entry: OpaquePointer?
+        while true {
+            let r = archive_read_next_header(a, &entry)
+            if r == ARCHIVE_EOF { break }
+            if r < ARCHIVE_WARN { throw error(a) }
+            guard let entry else { break }
+            let path = pathname(entry)
+            guard include(path) else { continue }
+
+            var data = Data()
+            while true {
+                let n = archive_read_data(a, buffer, bufferSize)
+                if n == 0 { break }
+                if n < 0 { throw error(a) }
+                total += n
+                if total > maxTotalBytes { throw ArchiveError(message: "Too large to preview.") }
+                data.append(buffer.assumingMemoryBound(to: UInt8.self), count: n)
+            }
+            result[path] = data
+        }
+        return result
+    }
+
     // MARK: - Private
 
     /// Writes the data of the current entry to `destination`. Returns false if `isCancelled` became true.

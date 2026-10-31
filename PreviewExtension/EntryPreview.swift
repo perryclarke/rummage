@@ -22,6 +22,15 @@ enum EntryPreview {
         if type.conforms(to: .image), let view = imageView(url) {
             return view
         }
+        if type.conforms(to: .font) || FontPreviewView.fileExtensions.contains(url.pathExtension.lowercased()),
+           let view = FontPreviewView(url: url) {
+            return view
+        }
+        // Before plain text, since CSV is text too.
+        if Spreadsheet.canRead(url),
+           let spreadsheet = try? await Task.detached(priority: .userInitiated, operation: { try Spreadsheet.read(url) }).value {
+            return SpreadsheetView(spreadsheet)
+        }
         // Some code extensions collide with media types (.ts is also MPEG transport stream video).
         if type.conforms(to: .audiovisualContent), !looksLikeText(url) {
             return playerView(url)

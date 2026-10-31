@@ -29,7 +29,9 @@ Selecting a file extracts just that entry to the extension's sandboxed temp fold
 | --- | --- |
 | Images (PNG, JPEG, HEIC, GIF, TIFF, …) | `NSImageView` |
 | PDF | `PDFView` |
-| Text, source code, CSV, JSON, Markdown, extension-less text files | monospaced text view, syntax-colored (see below) |
+| Text, source code, JSON, Markdown, extension-less text files | monospaced text view, syntax-colored (see below) |
+| Excel (`.xlsx`, `.xlsm`), CSV, TSV | spreadsheet grid with a tab per sheet (see below) |
+| Fonts (`.ttf`, `.otf`, `.ttc`, `.woff`) | sample sheet drawn with CoreText; collections get a style menu |
 | RTF, HTML, Word (`.docx`, `.doc`), OpenDocument text | `NSAttributedString` |
 | Audio & video | `AVPlayerView` |
 | Anything else | Quick Look thumbnail, or icon + details |
@@ -37,6 +39,16 @@ Selecting a file extracts just that entry to the extension's sandboxed temp fold
 `QLPreviewView` (the system's full Quick Look view) only draws a generic icon when nested
 inside a Quick Look extension, which is why previews are rendered natively. Entries over
 1 GB and encrypted entries aren't previewed.
+
+## Spreadsheets
+
+An `.xlsx` file is itself a zip of XML, which QLZip reads with libarchive and `XMLParser`. Cells
+show the values Excel last saved (formulas aren't recalculated) using each cell's number format:
+dates, times, durations, percentages, currency and thousands separators. Bold text and column
+widths are kept; colors, borders, merged cells, charts and images aren't. Hidden sheets are skipped.
+CSV and TSV files use the same grid; semicolon-separated files and Excel's UTF-16 "Unicode Text"
+export are detected. Each sheet shows at most 20,000 rows and 200 columns, and CSV files are read
+up to 16 MB. Legacy `.xls` and Numbers files aren't supported.
 
 ## Syntax coloring
 
@@ -78,6 +90,10 @@ is a quick way to test without Finder.
 - `PreviewExtension/PreviewViewController.swift` – split view UI, selection, extraction
 - `PreviewExtension/Uncompressor.swift` – copies selected items into a folder the user chooses
 - `PreviewExtension/EntryPreview.swift` – per-type preview views
+- `PreviewExtension/Spreadsheet.swift` – spreadsheet model and CSV/TSV parser
+- `PreviewExtension/XLSXReader.swift` – reads `.xlsx` workbooks, including Excel number formats
+- `PreviewExtension/SpreadsheetView.swift` – the spreadsheet grid
+- `PreviewExtension/FontPreviewView.swift` – font sample sheet
 - `PreviewExtension/SyntaxHighlighter.swift` – runs highlight.js and converts its output to text ranges
 - `PreviewExtension/SyntaxTheme.swift` – colors for each highlight.js scope
 - `PreviewExtension/Vendor/highlightjs/` – vendored highlight.js bundle and license
