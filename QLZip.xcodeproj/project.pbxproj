@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		0E70E6A9ED2B9CD318F40D5D /* Quartz.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8A29C5051AF0A01A1CB146B0 /* Quartz.framework */; };
 		0FF364D1238E8A9A4ADC375D /* FontPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4016F09D45CBC37D49FEC2C /* FontPreviewView.swift */; };
+		168440A6D2B061108AAC5D7E /* MarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E6C32CD06E2F73D6CACD56 /* MarkdownView.swift */; };
 		179F52BBA13EFDE684631ACE /* highlight.min.js in Resources */ = {isa = PBXBuildFile; fileRef = E1BCF5179164533477A4A3F2 /* highlight.min.js */; };
 		593935485D404D975D3F7468 /* QLZipApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB313ACD071403CA3BB0C45E /* QLZipApp.swift */; };
 		730CCE4BB0F5CD14809CC466 /* EntryPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE54245091C09DF11931BB1A /* EntryPreview.swift */; };
@@ -73,6 +74,7 @@
 		D33A3D0F8FE4828FF28E6EDA /* PreviewViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewViewController.swift; sourceTree = "<group>"; };
 		E057C34EF644A11659B231FB /* archive_shim.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = archive_shim.h; sourceTree = "<group>"; };
 		E1BCF5179164533477A4A3F2 /* highlight.min.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = highlight.min.js; sourceTree = "<group>"; };
+		E7E6C32CD06E2F73D6CACD56 /* MarkdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownView.swift; sourceTree = "<group>"; };
 		EE54245091C09DF11931BB1A /* EntryPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntryPreview.swift; sourceTree = "<group>"; };
 		F4016F09D45CBC37D49FEC2C /* FontPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FontPreviewView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -146,6 +148,7 @@
 				EE54245091C09DF11931BB1A /* EntryPreview.swift */,
 				F4016F09D45CBC37D49FEC2C /* FontPreviewView.swift */,
 				3E14D43F940B8E36E578F13F /* Info.plist */,
+				E7E6C32CD06E2F73D6CACD56 /* MarkdownView.swift */,
 				D33A3D0F8FE4828FF28E6EDA /* PreviewViewController.swift */,
 				7F5F5957BABE195BE0563369 /* QLZipPreview.entitlements */,
 				C7BC98C3CC3DB221B95FFC6F /* Spreadsheet.swift */,
@@ -285,6 +288,7 @@
 				E113A27CDC6795AD511A4B02 /* ArchiveTree.swift in Sources */,
 				730CCE4BB0F5CD14809CC466 /* EntryPreview.swift in Sources */,
 				0FF364D1238E8A9A4ADC375D /* FontPreviewView.swift in Sources */,
+				168440A6D2B061108AAC5D7E /* MarkdownView.swift in Sources */,
 				B315C7E0D75580F9D85B1254 /* PreviewViewController.swift in Sources */,
 				AC8AB0FA712F74F395B6E583 /* Spreadsheet.swift in Sources */,
 				9B916C95D8226621947F53F6 /* SpreadsheetView.swift in Sources */,

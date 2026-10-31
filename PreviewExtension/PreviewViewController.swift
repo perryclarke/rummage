@@ -1,4 +1,5 @@
 import Cocoa
+import os
 import Quartz
 import UniformTypeIdentifiers
 
@@ -109,7 +110,32 @@ final class PreviewViewController: NSViewController, QLPreviewingController {
         archiveURL = url
         Self.removeStaleWorkDirectories()
         let reader = ArchiveReader(url: url)
-        let listing = try await Task.detached(priority: .userInitiated) { try reader.list() }.value
+        let listingTask = Task.detached(priority: .userInitiated) { try reader.list() }
+
+        // Quick Look shows nothing until this method returns. Listing usually takes milliseconds, but
+        // compressed tarballs must be decompressed in full to list them, which can take a while; then
+        // return early with a progress message and finish listing in the background.
+        // (Finder downloads files that are still in iCloud before it contacts this extension at all,
+        // so there's no way to show progress for that here.)
+        if let result = await Self.result(of: listingTask, within: .milliseconds(400)) {
+            show(try result.get()) // a corrupt archive throws, so Quick Look falls back to its own preview
+            return
+        }
+        let icon = NSWorkspace.shared.icon(forFile: url.path)
+        showMessage(icon: icon, title: url.lastPathComponent, detail: "Reading archive…", busy: true)
+        Task { [weak self] in
+            let result = await listingTask.result
+            guard let self else { return }
+            switch result {
+            case .success(let listing):
+                self.show(listing)
+            case .failure(let error):
+                self.showMessage(icon: icon, title: url.lastPathComponent, detail: "Couldn’t read the archive: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    private func show(_ listing: ArchiveListing) {
         self.listing = listing
         root = ArchiveNode.build(from: listing.entries)
         outlineView.reloadData()
@@ -119,6 +145,23 @@ final class PreviewViewController: NSViewController, QLPreviewingController {
             outlineView.expandItem(root.children[0])
         }
         showSummary()
+    }
+
+    /// The task's result if it finishes within `timeout`, otherwise nil (the task keeps running).
+    private static func result<T: Sendable>(of task: Task<T, Error>, within timeout: Duration) async -> Result<T, Error>? {
+        let resumed = OSAllocatedUnfairLock(initialState: false)
+        return await withCheckedContinuation { continuation in
+            let resumeOnce = { @Sendable (value: Result<T, Error>?) in
+                if resumed.withLock({ wasResumed in defer { wasResumed = true }; return !wasResumed }) {
+                    continuation.resume(returning: value)
+                }
+            }
+            Task { resumeOnce(await task.result) }
+            Task {
+                try? await Task.sleep(for: timeout)
+                resumeOnce(nil)
+            }
+        }
     }
 
     // MARK: - Detail pane

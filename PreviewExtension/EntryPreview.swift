@@ -26,10 +26,13 @@ enum EntryPreview {
            let view = FontPreviewView(url: url) {
             return view
         }
-        // Before plain text, since CSV is text too.
+        // Before plain text, since CSV and Markdown are text too.
         if Spreadsheet.canRead(url),
            let spreadsheet = try? await Task.detached(priority: .userInitiated, operation: { try Spreadsheet.read(url) }).value {
             return SpreadsheetView(spreadsheet)
+        }
+        if MarkdownView.fileExtensions.contains(url.pathExtension.lowercased()), let view = MarkdownView(url: url) {
+            return view
         }
         // Some code extensions collide with media types (.ts is also MPEG transport stream video).
         if type.conforms(to: .audiovisualContent), !looksLikeText(url) {

@@ -29,7 +29,8 @@ Selecting a file extracts just that entry to the extension's sandboxed temp fold
 | --- | --- |
 | Images (PNG, JPEG, HEIC, GIF, TIFF, …) | `NSImageView` |
 | PDF | `PDFView` |
-| Text, source code, JSON, Markdown, extension-less text files | monospaced text view, syntax-colored (see below) |
+| Text, source code, JSON, extension-less text files | monospaced text view, syntax-colored (see below) |
+| Markdown | formatted text: headings, lists, quotes, tables, syntax-colored code blocks |
 | Excel (`.xlsx`, `.xlsm`), CSV, TSV | spreadsheet grid with a tab per sheet (see below) |
 | Fonts (`.ttf`, `.otf`, `.ttc`, `.woff`) | sample sheet drawn with CoreText; collections get a style menu |
 | RTF, HTML, Word (`.docx`, `.doc`), OpenDocument text | `NSAttributedString` |
@@ -39,6 +40,16 @@ Selecting a file extracts just that entry to the extension's sandboxed temp fold
 `QLPreviewView` (the system's full Quick Look view) only draws a generic icon when nested
 inside a Quick Look extension, which is why previews are rendered natively. Entries over
 1 GB and encrypted entries aren't previewed.
+
+Markdown is parsed by Foundation (`AttributedString(markdown:)`, GitHub flavored) and laid out
+with TextKit 1 text blocks and tables. Raw HTML is left out, and images show their description,
+since the extension can't load them. Files over 1 MB are shown as plain text.
+
+Big compressed tarballs have to be decompressed in full just to list them; if that takes more
+than 0.4 s the preview shows "Reading archive…" until the list is ready. Files that iCloud has
+evicted from the Mac are a different case: Finder downloads them before it contacts QLZip at all,
+so QLZip can't show progress for them. Choosing **Keep Downloaded** on a file or folder in Finder
+avoids the wait.
 
 ## Spreadsheets
 
@@ -94,6 +105,7 @@ is a quick way to test without Finder.
 - `PreviewExtension/XLSXReader.swift` – reads `.xlsx` workbooks, including Excel number formats
 - `PreviewExtension/SpreadsheetView.swift` – the spreadsheet grid
 - `PreviewExtension/FontPreviewView.swift` – font sample sheet
+- `PreviewExtension/MarkdownView.swift` – Markdown rendering
 - `PreviewExtension/SyntaxHighlighter.swift` – runs highlight.js and converts its output to text ranges
 - `PreviewExtension/SyntaxTheme.swift` – colors for each highlight.js scope
 - `PreviewExtension/Vendor/highlightjs/` – vendored highlight.js bundle and license
