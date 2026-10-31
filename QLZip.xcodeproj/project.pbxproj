@@ -12,6 +12,7 @@
 		168440A6D2B061108AAC5D7E /* MarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E6C32CD06E2F73D6CACD56 /* MarkdownView.swift */; };
 		179F52BBA13EFDE684631ACE /* highlight.min.js in Resources */ = {isa = PBXBuildFile; fileRef = E1BCF5179164533477A4A3F2 /* highlight.min.js */; };
 		593935485D404D975D3F7468 /* QLZipApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB313ACD071403CA3BB0C45E /* QLZipApp.swift */; };
+		6C30493E03588D71F0FB6241 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 3776ABEB53D1DE12E2B59A42 /* AppIcon.icon */; };
 		730CCE4BB0F5CD14809CC466 /* EntryPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE54245091C09DF11931BB1A /* EntryPreview.swift */; };
 		7D2D0317CBEA57549B8F10BB /* ArchiveReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AD818756C3E34964D025958 /* ArchiveReader.swift */; };
 		955F616A2AD94CA93558EB13 /* highlightjs-LICENSE.txt in Resources */ = {isa = PBXBuildFile; fileRef = AF04068D589E1FAD97E9DB41 /* highlightjs-LICENSE.txt */; };
@@ -52,6 +53,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		3776ABEB53D1DE12E2B59A42 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = AppIcon.icon; sourceTree = "<group>"; };
 		3C5B059A5B06B40EC1CDBA4E /* QLZip.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = QLZip.entitlements; sourceTree = "<group>"; };
 		3E14D43F940B8E36E578F13F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		4AD818756C3E34964D025958 /* ArchiveReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchiveReader.swift; sourceTree = "<group>"; };
@@ -133,6 +135,7 @@
 		5217BAD1BA6027CCAFA2EC31 /* App */ = {
 			isa = PBXGroup;
 			children = (
+				3776ABEB53D1DE12E2B59A42 /* AppIcon.icon */,
 				9C3C7ECE492EFC51EB0C44C9 /* Info.plist */,
 				3C5B059A5B06B40EC1CDBA4E /* QLZip.entitlements */,
 				AB313ACD071403CA3BB0C45E /* QLZipApp.swift */,
@@ -187,6 +190,7 @@
 			buildConfigurationList = 5EC3AED6D9ABE059C2362A27 /* Build configuration list for PBXNativeTarget "QLZip" */;
 			buildPhases = (
 				4DEAB932EF75F8371582A32D /* Sources */,
+				79A10BEBCDE2289AE9FFEFAC /* Resources */,
 				6A8E4355EFB0B4E7D423A1FE /* Embed Foundation Extensions */,
 			);
 			buildRules = (
@@ -266,6 +270,14 @@
 			files = (
 				179F52BBA13EFDE684631ACE /* highlight.min.js in Resources */,
 				955F616A2AD94CA93558EB13 /* highlightjs-LICENSE.txt in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		79A10BEBCDE2289AE9FFEFAC /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6C30493E03588D71F0FB6241 /* AppIcon.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

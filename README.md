@@ -103,9 +103,32 @@ Signed releases need "Developer ID Application" and "Developer ID Installer" cer
 `notarytool` keychain profile; see the comments at the top of the script for the one-time setup.
 The package and the disk image are each notarized and stapled.
 
+## Uninstalling
+
+Drag QLZip.app to the Trash from /Applications or ~/Applications, wherever it was installed.
+Finder stops using the extension once macOS notices the app is gone, which can take until Finder
+relaunches or you log out. To turn the previews off without uninstalling, switch off
+**QLZip Preview** in System Settings › General › Login Items & Extensions › Quick Look.
+
+To remove it right away from Terminal (for an install in /Applications, use that path and `sudo rm`):
+
+```sh
+app=~/Applications/QLZip.app
+pluginkit -r "$app/Contents/PlugIns/QLZipPreview.appex"
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -u "$app"
+rm -rf "$app"
+qlmanage -r && qlmanage -r cache
+```
+
+Afterwards, the sandbox folders `~/Library/Containers/com.perryclarke.QLZip` and
+`~/Library/Containers/com.perryclarke.QLZip.Preview` can be deleted; they hold only preview temp
+files. The installer package also leaves a receipt, which `pkgutil --forget com.perryclarke.QLZip`
+removes (with `sudo` if QLZip was installed for all users).
+
 ## Layout
 
-- `App/` – minimal host app (Quick Look extensions must ship inside an app)
+- `App/` – host app (Quick Look extensions must ship inside an app); its window explains how to use, enable and uninstall QLZip
+- `App/AppIcon.icon` – the app icon, an Icon Composer document (open it in Icon Composer, which ships with Xcode, to edit)
 - `Installer/` – installer package post-install script and conclusion page (used by `release.sh`)
 - `PreviewExtension/ArchiveReader.swift` – libarchive wrapper: listing and single-entry extraction
 - `PreviewExtension/ArchiveTree.swift` – builds the folder tree from flat archive paths
