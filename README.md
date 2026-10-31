@@ -39,7 +39,9 @@ Selecting a file extracts just that entry to the extension's sandboxed temp fold
 
 `QLPreviewView` (the system's full Quick Look view) only draws a generic icon when nested
 inside a Quick Look extension, which is why previews are rendered natively. Entries over
-1 GB and encrypted entries aren't previewed.
+1 GB and encrypted entries aren't previewed. HTML is shown as static text, without running
+scripts, so a page built by JavaScript (such as the one in a Twitter archive) would come out blank;
+QLZip shows its source instead.
 
 Markdown is parsed by Foundation (`AttributedString(markdown:)`, GitHub flavored) and laid out
 with TextKit 1 text blocks and tables. Raw HTML is left out, and images show their description,

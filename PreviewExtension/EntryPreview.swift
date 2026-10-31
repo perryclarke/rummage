@@ -41,8 +41,11 @@ enum EntryPreview {
         if type.conforms(to: .audiovisualContent), !looksLikeText(url) {
             return playerView(url)
         }
+        // HTML that comes out blank is usually a page built by JavaScript, which the importer doesn't
+        // run (e.g. the "Your archive.html" in a Twitter archive); its source, below, says more.
         if let documentType = attributedDocumentType(for: type), fileSize(url) <= maxRichDocumentBytes,
-           let text = await richText(url, documentType: documentType) {
+           let text = await richText(url, documentType: documentType),
+           documentType != .html || !text.string.allSatisfy(\.isWhitespace) {
             return textView(text, monospaced: false)
         }
         if type.conforms(to: .text) || looksLikeText(url) {
