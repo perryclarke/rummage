@@ -292,11 +292,18 @@ final class PreviewViewController: NSViewController, QLPreviewingController {
         panel.message = "Uncompress \(Self.describe(nodes))"
         panel.directoryURL = archiveURL.deletingLastPathComponent()
         folderChooser = panel
-        panel.begin { [weak self] response in
+        let completion = { [weak self] (response: NSApplication.ModalResponse) in
             guard let self else { return }
             self.folderChooser = nil
             guard response == .OK, let folder = panel.url else { return }
             self.uncompress(nodes, into: folder, archiveURL: archiveURL, listing: listing)
+        }
+        // As a free-standing window the chooser can open behind Finder's Quick Look panel, which
+        // floats above normal windows. A sheet is shown attached to the Quick Look window instead.
+        if let window = view.window {
+            panel.beginSheetModal(for: window, completionHandler: completion)
+        } else {
+            panel.begin(completionHandler: completion)
         }
     }
 
