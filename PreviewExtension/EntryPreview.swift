@@ -48,6 +48,11 @@ enum EntryPreview {
         return await thumbnailView(url, scale: scale)
     }
 
+    /// Video and audio players, which must leave Quick Look's window before it closes.
+    static func isPlayer(_ view: NSView) -> Bool {
+        view is AVPlayerView
+    }
+
     /// Releases resources held by a preview view (e.g. stops playback).
     static func tearDown(_ view: NSView) {
         if let player = view as? AVPlayerView {

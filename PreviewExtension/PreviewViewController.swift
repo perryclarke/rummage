@@ -21,6 +21,8 @@ final class PreviewViewController: NSViewController, QLPreviewingController {
         .appendingPathComponent("QLZip-\(UUID().uuidString)", isDirectory: true)
     private var extractionToken: CancellationToken?
     private var didSetInitialDivider = false
+    /// Set when a player was taken down because the preview left the screen.
+    private var restorePreviewOnAppear = false
     private var folderChooser: NSOpenPanel?
     /// Identifies the latest uncompress, so an earlier one finishing doesn't overwrite its status.
     private var uncompressCount = 0
@@ -81,6 +83,26 @@ final class PreviewViewController: NSViewController, QLPreviewingController {
 
         view = split
         preferredContentSize = NSSize(width: 980, height: 620)
+    }
+
+    override func viewWillAppear() {
+        super.viewWillAppear()
+        if restorePreviewOnAppear {
+            restorePreviewOnAppear = false
+            selectionDidChange()
+        }
+    }
+
+    /// AVPlayerView rebuilds its controls when it leaves a window. If that happens while Quick Look
+    /// deallocates its window after the panel closes, the controls' constraint conflict becomes a
+    /// crash, so take the player down now, while the window is still alive. If the view appears
+    /// again instead of closing, the preview is rebuilt.
+    override func viewWillDisappear() {
+        super.viewWillDisappear()
+        if let previewView, EntryPreview.isPlayer(previewView) {
+            removePreview()
+            restorePreviewOnAppear = true
+        }
     }
 
     override func viewDidAppear() {
