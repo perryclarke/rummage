@@ -12,6 +12,9 @@ import UniformTypeIdentifiers
 enum EntryPreview {
     /// Text files larger than this are truncated for display.
     private static let maxTextBytes = 2 << 20
+    /// Rich documents (HTML, RTF, Word, OpenDocument) larger than this get a thumbnail instead:
+    /// the importers are synchronous and slow, and HTML's has to run on the main thread.
+    private static let maxRichDocumentBytes = 4 << 20
 
     static func makeView(for url: URL, scale: CGFloat) async -> NSView? {
         let type = UTType(filenameExtension: url.pathExtension) ?? .data
@@ -38,8 +41,8 @@ enum EntryPreview {
         if type.conforms(to: .audiovisualContent), !looksLikeText(url) {
             return playerView(url)
         }
-        if let documentType = attributedDocumentType(for: type),
-           let text = try? NSAttributedString(url: url, options: [.documentType: documentType], documentAttributes: nil) {
+        if let documentType = attributedDocumentType(for: type), fileSize(url) <= maxRichDocumentBytes,
+           let text = await richText(url, documentType: documentType) {
             return textView(text, monospaced: false)
         }
         if type.conforms(to: .text) || looksLikeText(url) {
@@ -109,6 +112,25 @@ enum EntryPreview {
         return scroll
     }
 
+    /// The document at `url` as attributed text. The HTML importer goes through WebKit and must
+    /// run on the main thread; the others are read in the background.
+    private static func richText(_ url: URL, documentType: NSAttributedString.DocumentType) async -> NSAttributedString? {
+        if documentType == .html {
+            return try? NSAttributedString(url: url, options: [.documentType: documentType], documentAttributes: nil)
+        }
+        let rawType = documentType.rawValue
+        return await Task.detached(priority: .userInitiated) { () -> UncheckedSendable<NSAttributedString?> in
+            let type = NSAttributedString.DocumentType(rawValue: rawType)
+            return UncheckedSendable(try? NSAttributedString(url: url, options: [.documentType: type], documentAttributes: nil))
+        }.value.value
+    }
+
+    /// Carries an immutable Foundation object (which isn't marked Sendable) out of a background task.
+    private struct UncheckedSendable<T>: @unchecked Sendable {
+        let value: T
+        init(_ value: T) { self.value = value }
+    }
+
     private static func textView(_ text: NSAttributedString, monospaced: Bool) -> NSScrollView {
         let scroll = NSTextView.scrollableTextView()
         let textView = scroll.documentView as! NSTextView
@@ -155,6 +177,10 @@ enum EntryPreview {
         case "org.oasis-open.opendocument.text": return .openDocument
         default: return nil
         }
+    }
+
+    private static func fileSize(_ url: URL) -> Int {
+        (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? .max
     }
 
     /// Treats files with unknown extensions (Makefile, LICENSE, .conf, ...) as text if they decode as UTF-8.

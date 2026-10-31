@@ -35,17 +35,20 @@ struct ArchiveReader: Sendable {
     func list() throws -> ArchiveListing {
         do {
             return try list(raw: false)
-        } catch {
+        } catch let error as UnrecognizedArchive {
             // A bare .gz/.bz2/.xz that isn't a tarball: present the decompressed file as a single entry.
             if let listing = try? list(raw: true), !listing.entries.isEmpty {
                 return listing
             }
-            throw error
+            throw error.underlying
         }
     }
 
-    /// Extracts the entry at `index` of `listing` to `destination`. Returns false if `isCancelled` became true.
-    func extract(index: Int, of listing: ArchiveListing, to destination: URL, isCancelled: @Sendable () -> Bool) throws -> Bool {
+    /// Extracts the entry at `index` of `listing` to `destination`, giving up with an error once
+    /// more than `maxBytes` have been written (sizes in headers can't be trusted, and raw entries
+    /// have none). Returns false if `isCancelled` became true.
+    func extract(index: Int, of listing: ArchiveListing, to destination: URL, maxBytes: Int64,
+                 isCancelled: @Sendable () -> Bool) throws -> Bool {
         let a = try open(raw: listing.isRaw)
         defer { archive_read_free(a) }
 
@@ -59,7 +62,7 @@ struct ArchiveReader: Sendable {
             current += 1
             if isCancelled() { return false }
         }
-        return try writeData(a, to: destination, isCancelled: isCancelled)
+        return try writeData(a, to: destination, maxBytes: maxBytes, isCancelled: isCancelled)
     }
 
     struct Target: Sendable {
@@ -93,7 +96,7 @@ struct ArchiveReader: Sendable {
             case .symlink:
                 if let destination = symlinkDestination(entry) { symlinks.append((target.url, destination)) }
             case .file:
-                _ = try writeData(a, to: target.url, isCancelled: { false })
+                _ = try writeData(a, to: target.url, maxBytes: .max, isCancelled: { false })
                 var attributes: [FileAttributeKey: Any] = [:]
                 let permissions = archive_entry_perm(entry) & 0o777
                 // Some zips (e.g. made on Windows) carry no permissions; keep the default then.
@@ -155,7 +158,7 @@ struct ArchiveReader: Sendable {
     // MARK: - Private
 
     /// Writes the data of the current entry to `destination`. Returns false if `isCancelled` became true.
-    private func writeData(_ a: OpaquePointer, to destination: URL, isCancelled: () -> Bool) throws -> Bool {
+    private func writeData(_ a: OpaquePointer, to destination: URL, maxBytes: Int64, isCancelled: () -> Bool) throws -> Bool {
         FileManager.default.createFile(atPath: destination.path, contents: nil)
         let handle = try FileHandle(forWritingTo: destination)
         defer { try? handle.close() }
@@ -163,11 +166,14 @@ struct ArchiveReader: Sendable {
         let bufferSize = 256 * 1024
         let buffer = UnsafeMutableRawPointer.allocate(byteCount: bufferSize, alignment: 1)
         defer { buffer.deallocate() }
+        var written: Int64 = 0
         while true {
             if isCancelled() { return false }
             let n = archive_read_data(a, buffer, bufferSize)
             if n == 0 { break }
             if n < 0 { throw error(a) }
+            written += Int64(n)
+            if written > maxBytes { throw ArchiveError(message: "Too large to preview.") }
             try handle.write(contentsOf: Data(bytesNoCopy: buffer, count: n, deallocator: .none))
         }
         return true
@@ -179,8 +185,19 @@ struct ArchiveReader: Sendable {
         return nil
     }
 
+    /// Thrown by `list(raw: false)` when the file isn't an archive libarchive knows, as opposed to
+    /// a recognized archive that is damaged; only the former falls back to raw mode.
+    private struct UnrecognizedArchive: Error {
+        let underlying: ArchiveError
+    }
+
     private func list(raw: Bool) throws -> ArchiveListing {
-        let a = try open(raw: raw)
+        let a: OpaquePointer
+        do {
+            a = try open(raw: raw)
+        } catch let error as ArchiveError {
+            throw raw ? error : UnrecognizedArchive(underlying: error)
+        }
         defer { archive_read_free(a) }
 
         var entries: [ArchiveEntry] = []
@@ -189,12 +206,19 @@ struct ArchiveReader: Sendable {
         while true {
             let r = archive_read_next_header(a, &entry)
             if r == ARCHIVE_EOF { break }
-            if r < ARCHIVE_WARN { throw error(a) }
+            if r < ARCHIVE_WARN {
+                // Failing on the very first header means the format wasn't recognized; failing
+                // later means a recognized archive is truncated or corrupt, which is worth reporting.
+                let err = error(a)
+                throw raw || index > 0 ? err : UnrecognizedArchive(underlying: err)
+            }
             guard let entry else { break }
 
             let path = raw ? rawEntryName : pathname(entry)
             let components = path.split(separator: "/").map(String.init).filter { $0 != "." && !$0.isEmpty }
-            if !components.isEmpty {
+            // Entries with ".." in their path are left out, as bsdtar does: they would point outside
+            // the folder they're uncompressed into (and outside the preview's own folder).
+            if !components.isEmpty, !components.contains("..") {
                 let kind: ArchiveEntry.Kind
                 switch archive_entry_filetype(entry) & AE_IFMT {
                 case AE_IFREG: kind = path.hasSuffix("/") ? .directory : .file
@@ -213,14 +237,15 @@ struct ArchiveReader: Sendable {
                 ))
             }
             index += 1
-            // Skipping is cheap for zip (central directory); for compressed tars it decompresses.
-            archive_read_data_skip(a)
+            // Skipping is cheap for zip (central directory); for compressed tars it decompresses,
+            // which is where a truncated or corrupt archive usually shows up.
+            if archive_read_data_skip(a) < ARCHIVE_WARN { throw error(a) }
         }
 
         // libarchive's mtree reader accepts almost any text file, so a gzipped CSV would be
         // listed as an "archive" of its lines. Treat it as unrecognized so list() falls back to raw.
         if !raw, archive_format_name(a).map({ String(cString: $0).hasPrefix("mtree") }) == true {
-            throw ArchiveError(message: "Not a recognized archive.")
+            throw UnrecognizedArchive(underlying: ArchiveError(message: "Not a recognized archive."))
         }
         if raw {
             // libarchive accepts anything in raw mode; only trust it if a real filter was applied.

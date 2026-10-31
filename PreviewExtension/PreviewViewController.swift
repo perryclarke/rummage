@@ -4,7 +4,8 @@ import Quartz
 import UniformTypeIdentifiers
 
 final class PreviewViewController: NSViewController, QLPreviewingController {
-    /// Entries larger than this are not extracted for preview.
+    /// Entries larger than this are not extracted for preview. Checked against the size in the
+    /// archive's headers first, and again while extracting, since headers can lie or be missing.
     private static let maxPreviewSize: Int64 = 1 << 30
 
     private var archiveURL: URL?
@@ -300,6 +301,7 @@ final class PreviewViewController: NSViewController, QLPreviewingController {
             self.showMessage(icon: icon, title: node.name, detail: "Extracting…", busy: true)
         }
 
+        let maxBytes = Self.maxPreviewSize
         Task { @MainActor [weak self] in
             let result = await Task.detached(priority: .userInitiated) { () -> Result<Bool, Error> in
                 let fm = FileManager.default
@@ -307,7 +309,8 @@ final class PreviewViewController: NSViewController, QLPreviewingController {
                 do {
                     try fm.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
                     let finished = try ArchiveReader(url: archiveURL).extract(
-                        index: entry.index, of: listing, to: partial, isCancelled: { token.isCancelled })
+                        index: entry.index, of: listing, to: partial, maxBytes: maxBytes,
+                        isCancelled: { token.isCancelled })
                     if finished {
                         try fm.moveItem(at: partial, to: destination)
                     } else {

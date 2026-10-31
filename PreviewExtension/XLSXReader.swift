@@ -247,7 +247,8 @@ enum XLSXReader {
         }
     }
 
-    /// "B3" → (row: 2, column: 1).
+    /// "B3" → (row: 2, column: 1). Absurdly long references (far past Excel's own limits) return
+    /// nil rather than overflowing; ordinary out-of-range cells still parse and are counted as truncated.
     private static func cellReference(_ reference: String) -> (Int, Int)? {
         var column = 0
         var row = 0
@@ -255,8 +256,10 @@ enum XLSXReader {
             switch byte {
             case UInt8(ascii: "A")...UInt8(ascii: "Z") where row == 0:
                 column = column * 26 + Int(byte - UInt8(ascii: "A")) + 1
+                if column > 1 << 40 { return nil }
             case UInt8(ascii: "0")...UInt8(ascii: "9"):
                 row = row * 10 + Int(byte - UInt8(ascii: "0"))
+                if row > 1 << 40 { return nil }
             case UInt8(ascii: "$"):
                 continue
             default:
@@ -396,6 +399,8 @@ struct NumberFormat: Sendable {
         case .scientific:
             return value.formatted(.number.notation(.scientific).precision(.fractionLength(decimals)))
         case .duration:
+            // A duration longer than a million days isn't one; also catches NaN and infinity.
+            guard value.isFinite, abs(value) < 1_000_000 else { return NumberFormat.general.string(for: value, date1904: false) }
             let seconds = Int((abs(value) * 86400).rounded())
             let hm = "\(seconds / 3600):" + String(format: "%02d", seconds / 60 % 60)
             return (value < 0 ? "-" : "") + (showsSeconds ? hm + String(format: ":%02d", seconds % 60) : hm)

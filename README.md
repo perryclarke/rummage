@@ -33,7 +33,7 @@ Selecting a file extracts just that entry to the extension's sandboxed temp fold
 | Markdown | formatted text: headings, lists, quotes, tables, syntax-colored code blocks |
 | Excel (`.xlsx`, `.xlsm`), CSV, TSV | spreadsheet grid with a tab per sheet (see below) |
 | Fonts (`.ttf`, `.otf`, `.ttc`, `.woff`) | sample sheet drawn with CoreText; collections get a style menu |
-| RTF, HTML, Word (`.docx`, `.doc`), OpenDocument text | `NSAttributedString` |
+| RTF, HTML, Word (`.docx`, `.doc`), OpenDocument text (up to 4 MB) | `NSAttributedString` |
 | Audio & video | `AVPlayerView` |
 | Anything else | Quick Look thumbnail, or icon + details |
 
