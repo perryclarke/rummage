@@ -14,11 +14,14 @@ dest="$HOME/Applications/QLZip.app"
 extension=com.perryclarke.QLZip.Preview
 lsregister=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
 
-# Make sure only the installed copy is registered, not the one in the build folder. This comes
-# first: the system applies it asynchronously, and as both copies have the same bundle ID, applied
-# after the installed copy is registered it can unregister that one too.
-pluginkit -r "$PWD/$app/Contents/PlugIns/QLZipPreview.appex" 2>/dev/null || true
-$lsregister -u "$PWD/$app" 2>/dev/null || true
+# Make sure only the installed copy is registered, not the copies in the build folder: this
+# build's, and those release.sh leaves (its archive, export and package root). This comes first:
+# the system applies it asynchronously, and as the copies all have the same bundle ID, applied after
+# the installed copy is registered it can unregister that one too.
+for copy in "$PWD/$app" "$PWD"/build/release/work/**/QLZip.app(N/); do
+    pluginkit -r "$copy/Contents/PlugIns/QLZipPreview.appex" 2>/dev/null || true
+    $lsregister -u "$copy" 2>/dev/null || true
+done
 
 mkdir -p "$HOME/Applications"
 rm -rf "$dest"
