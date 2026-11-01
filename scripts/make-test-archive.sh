@@ -92,7 +92,8 @@ cd "$work"
 mkdir -p "${output:h}"
 rm -f "$output"
 zip -r -y -X -q "$output" "$name" -x '*.DS_Store'
-# Added on its own with a password, so that only this entry is encrypted.
+# Added on its own with a password, so that only this entry is encrypted. README.md (written by
+# generate.py) gives the password too; keep them the same.
 echo "This entry is encrypted, so it can't be previewed. The password is rummage." > "$name/Other/secret (encrypted).txt"
 zip -X -q -P rummage "$output" "$name/Other/secret (encrypted).txt"
 

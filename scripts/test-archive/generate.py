@@ -35,6 +35,9 @@ A sampling of file types and edge cases for trying Rummage. Select each item and
 | `Media` | a video clip and two audio files |
 | `Other` | a nested zip, a symlink, an encrypted file, unknown types, deep and empty folders |
 
+The encrypted file, `Other/secret (encrypted).txt`, has the password `rummage`. Rummage skips it
+when uncompressing, but Archive Utility asks for the password when it opens the whole archive.
+
 ## Markdown features
 
 Text can be **bold**, *italic*, ***both***, ~~struck through~~, or `code`. Here's a [link](https://example.com).
