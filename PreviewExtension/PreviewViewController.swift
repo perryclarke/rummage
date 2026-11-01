@@ -6,7 +6,7 @@ import UniformTypeIdentifiers
 final class PreviewViewController: NSViewController, QLPreviewingController {
     /// Entries larger than this are not extracted for preview. Checked against the size in the
     /// archive's headers first, and again while extracting, since headers can lie or be missing.
-    private static let maxPreviewSize: Int64 = 1 << 30
+    nonisolated static let maxPreviewSize: Int64 = 1 << 30
 
     private var archiveURL: URL?
     private var listing: ArchiveListing?
@@ -27,6 +27,10 @@ final class PreviewViewController: NSViewController, QLPreviewingController {
     private var folderChooser: NSOpenPanel?
     /// Identifies the latest uncompress, so an earlier one finishing doesn't overwrite its status.
     private var uncompressCount = 0
+    /// Set while the code expands folders itself, so only the user's expansions change the selection.
+    private var isExpandingProgrammatically = false
+    /// Folders the user just expanded; the outermost is selected once the expansion finishes.
+    private var userExpandedNodes: [ArchiveNode] = []
 
     deinit {
         try? FileManager.default.removeItem(at: workDirectory)
@@ -70,6 +74,7 @@ final class PreviewViewController: NSViewController, QLPreviewingController {
 
         detailContainer.addSubview(messageView)
         messageView.pinEdges(to: detailContainer)
+        messageView.onDoubleClick = { [weak self] in self?.uncompressSelection() }
 
         let listPane = NSStackView(views: [scroll, statusBar])
         listPane.orientation = .vertical
@@ -165,7 +170,7 @@ final class PreviewViewController: NSViewController, QLPreviewingController {
 
         // A single top-level folder is the common case; open it so the contents are visible immediately.
         if root.children.count == 1, root.children[0].isDirectory {
-            outlineView.expandItem(root.children[0])
+            expandProgrammatically(root.children[0])
         }
         showSummary()
     }
@@ -189,14 +194,38 @@ final class PreviewViewController: NSViewController, QLPreviewingController {
 
     // MARK: - Detail pane
 
+    /// The top level of the archive, with a summary of the whole archive above it.
     private func showSummary() {
         guard let archiveURL, let listing else { return }
-        let encrypted = listing.entries.contains { $0.isEncrypted }
-        var details = "\(root.fileCount.formatted()) \(root.fileCount == 1 ? "file" : "files")"
-        if !listing.isRaw { details += ", \(Self.format(bytes: root.totalSize)) uncompressed" }
-        if !listing.formatDescription.isEmpty { details += "\n\(listing.formatDescription)" }
-        if encrypted { details += "\nSome entries are encrypted" }
-        showMessage(icon: NSWorkspace.shared.icon(forFile: archiveURL.path), title: archiveURL.lastPathComponent, detail: details)
+        var count = "\(root.fileCount.formatted()) \(root.fileCount == 1 ? "file" : "files")"
+        if !listing.isRaw { count += ", \(Self.format(bytes: root.totalSize)) uncompressed" }
+        var details = [count]
+        if !listing.formatDescription.isEmpty { details.append(listing.formatDescription) }
+        if listing.entries.contains(where: \.isEncrypted) { details.append("some entries are encrypted") }
+        showFolder(root, title: archiveURL.lastPathComponent, detail: details.joined(separator: " · "),
+                   icon: NSWorkspace.shared.icon(forFile: archiveURL.path))
+    }
+
+    /// The contents of `folder` as icons, with thumbnails for images.
+    private func showFolder(_ folder: ArchiveNode, title: String, detail: String, icon: NSImage) {
+        guard let archiveURL, let listing else { return }
+        let folderView = FolderView(
+            title: title, detail: detail, icon: icon, items: folder.children,
+            archive: ArchiveReader(url: archiveURL), listing: listing, cacheDirectory: workDirectory,
+            scale: view.window?.backingScaleFactor ?? 2)
+        // As in the list, double-clicking an item or choosing Uncompress from its menu uncompresses it.
+        folderView.onUncompress = { [weak self] node in self?.chooseFolder(toUncompress: [node]) }
+        removePreview()
+        messageView.isHidden = true
+        detailContainer.addSubview(folderView)
+        folderView.pinEdges(to: detailContainer)
+        previewView = folderView
+    }
+
+    private func expandProgrammatically(_ node: ArchiveNode) {
+        isExpandingProgrammatically = true
+        defer { isExpandingProgrammatically = false }
+        outlineView.expandItem(node)
     }
 
     private func showMessage(icon: NSImage?, title: String, detail: String?, busy: Bool = false) {
@@ -207,7 +236,16 @@ final class PreviewViewController: NSViewController, QLPreviewingController {
 
     private func showPreview(of fileURL: URL, node: ArchiveNode, icon: NSImage, token: CancellationToken) async {
         let scale = view.window?.backingScaleFactor ?? 2
-        let preview = await EntryPreview.makeView(for: fileURL, scale: scale)
+        await present(node: node, icon: icon, token: token) { await EntryPreview.makeView(for: fileURL, scale: scale) }
+    }
+
+    /// Shows the view `make` builds for `node`, with a spinner if that's slow (as decoding a large
+    /// photo can be).
+    private func present(node: ArchiveNode, icon: NSImage, token: CancellationToken, _ make: () async -> NSView?) async {
+        let opening = CancellationToken()
+        showSpinner("Opening…", icon: icon, node: node, for: token, until: opening)
+        let preview = await make()
+        opening.finish()
         guard extractionToken === token else { return }
         guard let preview else {
             showMessage(icon: icon, title: node.name, detail: Self.details(for: node) + "\nNo preview available")
@@ -221,6 +259,19 @@ final class PreviewViewController: NSViewController, QLPreviewingController {
         detailContainer.addSubview(preview)
         preview.pinEdges(to: detailContainer)
         previewView = preview
+        // Double-clicking a picture of the item uncompresses it, as double-clicking it in the list does.
+        EntryPreview.onDoubleClick(in: preview) { [weak self] in self?.uncompressSelection() }
+    }
+
+    /// Shows a spinner if `task` hasn't finished within 150 ms, so quick steps don't flicker while
+    /// arrowing through files, unless the selection has changed meanwhile.
+    private func showSpinner(_ detail: String, icon: NSImage, node: ArchiveNode, for selection: CancellationToken,
+                             until task: CancellationToken) {
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(150))
+            guard let self, !task.isFinished, !selection.isCancelled, self.extractionToken === selection else { return }
+            self.showMessage(icon: icon, title: node.name, detail: detail, busy: true)
+        }
     }
 
     private func removePreview() {
@@ -249,11 +300,9 @@ final class PreviewViewController: NSViewController, QLPreviewingController {
         }
         if node.isDirectory {
             let count = node.children.count
-            showMessage(
-                icon: NSWorkspace.shared.icon(for: .folder),
-                title: node.name,
-                detail: "\(count.formatted()) \(count == 1 ? "item" : "items"), \(Self.format(bytes: node.totalSize))"
-            )
+            showFolder(node, title: node.name,
+                       detail: "\(count.formatted()) \(count == 1 ? "item" : "items"), \(Self.format(bytes: node.totalSize))",
+                       icon: NSWorkspace.shared.icon(for: .folder))
             return
         }
         guard let entry = node.entry else { return }
@@ -278,14 +327,15 @@ final class PreviewViewController: NSViewController, QLPreviewingController {
             return
         }
 
-        // Each entry gets its own directory so the real filename (and so its type) is preserved.
-        let destination = workDirectory
-            .appendingPathComponent(String(entry.index), isDirectory: true)
-            .appendingPathComponent(node.name)
+        let destination = entry.previewURL(in: workDirectory)
         let token = CancellationToken()
         extractionToken = token
         if FileManager.default.fileExists(atPath: destination.path) {
             Task { await showPreview(of: destination, node: node, icon: icon, token: token) }
+            return
+        }
+        if UTType(filenameExtension: (node.name as NSString).pathExtension)?.conforms(to: .rawImage) == true {
+            extractRaw(entry, of: node, to: destination, icon: icon, token: token)
             return
         }
         extract(entry, of: node, to: destination, icon: icon, token: token)
@@ -294,13 +344,7 @@ final class PreviewViewController: NSViewController, QLPreviewingController {
     private func extract(_ entry: ArchiveEntry, of node: ArchiveNode, to destination: URL, icon: NSImage, token: CancellationToken) {
         guard let archiveURL, let listing else { return }
 
-        // Only show a spinner if extraction is noticeably slow, to avoid flicker while arrowing through files.
-        Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .milliseconds(150))
-            guard let self, !token.isCancelled, !token.isFinished, self.extractionToken === token else { return }
-            self.showMessage(icon: icon, title: node.name, detail: "Extracting…", busy: true)
-        }
-
+        showSpinner("Extracting…", icon: icon, node: node, for: token, until: token)
         let maxBytes = Self.maxPreviewSize
         Task { @MainActor [weak self] in
             let result = await Task.detached(priority: .userInitiated) { () -> Result<Bool, Error> in
@@ -336,6 +380,60 @@ final class PreviewViewController: NSViewController, QLPreviewingController {
         }
     }
 
+    private enum RawOutcome: Sendable {
+        case preview(Data, orientation: Int?)
+        case extracted
+        case failed(Error?)
+    }
+
+    /// A camera RAW file: if the JPEG preview it embeds is at least screen size, that's shown, which
+    /// needs only the start of the file read; otherwise the file is extracted and the RAW decoded.
+    private func extractRaw(_ entry: ArchiveEntry, of node: ArchiveNode, to destination: URL, icon: NSImage, token: CancellationToken) {
+        guard let archiveURL, let listing else { return }
+        showSpinner("Extracting…", icon: icon, node: node, for: token, until: token)
+        let maxBytes = Self.maxPreviewSize
+        let minSide = Int(EntryPreview.screenPixelSize)
+        Task { @MainActor [weak self] in
+            let outcome = await Task.detached(priority: .userInitiated) { () -> RawOutcome in
+                var outcome = RawOutcome.failed(nil)
+                do {
+                    try ArchiveReader(url: archiveURL).extractFiles(
+                        [.init(entry: entry, url: destination)], of: listing, maxBytes: maxBytes,
+                        startsOf: [entry.index], maxStartBytes: RawPreview.maxBytes,
+                        readStart: { _, data, isWhole in
+                            switch RawPreview.find(in: data, isWhole: isWhole, minSide: minSide) {
+                            case .needMore(let count):
+                                return .needMore(count)
+                            case .found(let jpeg, let orientation):
+                                outcome = .preview(jpeg, orientation: orientation)
+                                return .done
+                            case .none:
+                                return .writeFile
+                            }
+                        },
+                        isCancelled: { token.isCancelled }, didWrite: { _ in outcome = .extracted })
+                } catch {
+                    outcome = .failed(error)
+                }
+                return outcome
+            }.value
+            token.finish()
+
+            guard let self, self.extractionToken === token, !token.isCancelled else { return }
+            switch outcome {
+            case .preview(let jpeg, let orientation):
+                await self.present(node: node, icon: icon, token: token) {
+                    await EntryPreview.imageView(jpeg: jpeg, orientation: orientation)
+                }
+            case .extracted:
+                await self.showPreview(of: destination, node: node, icon: icon, token: token)
+            case .failed(let error):
+                let reason = error?.localizedDescription ?? "the file couldn't be read."
+                self.showMessage(icon: icon, title: node.name, detail: "Couldn't extract: \(reason)")
+            }
+        }
+    }
+
     // MARK: - Uncompressing
 
     /// The items a double-click or the context menu acts on: the whole selection if the clicked
@@ -350,6 +448,11 @@ final class PreviewViewController: NSViewController, QLPreviewingController {
 
     @objc private func uncompressClickedItems() {
         chooseFolder(toUncompress: clickedNodes())
+    }
+
+    /// Uncompresses the items selected in the list (whose preview was double-clicked).
+    private func uncompressSelection() {
+        chooseFolder(toUncompress: Self.outermost(outlineView.selectedRowIndexes.compactMap { outlineView.item(atRow: $0) as? ArchiveNode }))
     }
 
     private func chooseFolder(toUncompress nodes: [ArchiveNode]) {
@@ -413,6 +516,11 @@ final class PreviewViewController: NSViewController, QLPreviewingController {
     }
 
     /// “a.txt”; “a.txt”, “b.png”, and “c”; or “a.txt”, “b.png”, and 3 more items.
+    /// The context menu item for uncompressing `nodes`, in the list and in the icon view.
+    static func uncompressTitle(for nodes: [ArchiveNode]) -> String {
+        nodes.count == 1 ? "Uncompress “\(nodes[0].name)”…" : "Uncompress \(nodes.count.formatted()) Items…"
+    }
+
     private static func describe(_ nodes: [ArchiveNode]) -> String {
         let names = nodes.map { "“\($0.name)”" }
         guard names.count > 3 else { return ListFormatter.localizedString(byJoining: names) }
@@ -448,7 +556,7 @@ final class PreviewViewController: NSViewController, QLPreviewingController {
 
     private static var iconCache: [String: NSImage] = [:]
 
-    fileprivate static func icon(for node: ArchiveNode) -> NSImage {
+    static func icon(for node: ArchiveNode) -> NSImage {
         if node.isDirectory { return NSWorkspace.shared.icon(for: .folder) }
         let ext = (node.name as NSString).pathExtension.lowercased()
         if let cached = iconCache[ext] { return cached }
@@ -490,6 +598,26 @@ extension PreviewViewController: NSOutlineViewDataSource, NSOutlineViewDelegate 
 
     func outlineViewSelectionDidChange(_ notification: Notification) {
         selectionDidChange()
+    }
+
+    /// Selects a folder the user expands with its disclosure triangle, so its contents show in the
+    /// preview. Option-click expands a whole subtree and notifies for each folder, so this waits for
+    /// the expansion to finish and selects the outermost one. A folder expanded from the keyboard is
+    /// already selected, so the selection is left alone.
+    func outlineViewItemDidExpand(_ notification: Notification) {
+        guard !isExpandingProgrammatically,
+              let node = notification.userInfo?["NSObject"] as? ArchiveNode,
+              !outlineView.selectedRowIndexes.contains(outlineView.row(forItem: node)) else { return }
+        userExpandedNodes.append(node)
+        guard userExpandedNodes.count == 1 else { return }
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let rows = userExpandedNodes.map { outlineView.row(forItem: $0) }.filter { $0 >= 0 }
+            userExpandedNodes = []
+            guard let row = rows.min() else { return }
+            outlineView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
+            view.window?.makeFirstResponder(outlineView)
+        }
     }
 
     private static func makeCell(identifier: NSUserInterfaceItemIdentifier) -> NSTableCellView {
@@ -535,8 +663,8 @@ extension PreviewViewController: NSMenuDelegate {
         menu.removeAllItems()
         let nodes = clickedNodes()
         guard !nodes.isEmpty else { return }
-        let title = nodes.count == 1 ? "Uncompress “\(nodes[0].name)”…" : "Uncompress \(nodes.count.formatted()) Items…"
-        menu.addItem(withTitle: title, action: #selector(uncompressClickedItems), keyEquivalent: "").target = self
+        menu.addItem(withTitle: Self.uncompressTitle(for: nodes), action: #selector(uncompressClickedItems), keyEquivalent: "")
+            .target = self
     }
 }
 
@@ -547,7 +675,7 @@ private extension NSUserInterfaceItemIdentifier {
     static let size = NSUserInterfaceItemIdentifier("size")
 }
 
-private final class CancellationToken: @unchecked Sendable {
+final class CancellationToken: @unchecked Sendable {
     private let lock = NSLock()
     private var cancelled = false
     private var finished = false
@@ -560,6 +688,8 @@ private final class CancellationToken: @unchecked Sendable {
 
 /// Centered icon + title + detail, used for folders, the archive summary and errors.
 private final class MessageView: NSView {
+    /// Called on a double-click anywhere in the view.
+    var onDoubleClick: (() -> Void)?
     private let imageView = NSImageView()
     private let titleLabel = NSTextField(labelWithString: "")
     private let detailLabel = NSTextField(wrappingLabelWithString: "")
@@ -592,6 +722,15 @@ private final class MessageView: NSView {
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+
+    // The view takes clicks for its labels and icon, so a double-click anywhere in it counts.
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        super.hitTest(point) == nil ? nil : self
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        if event.clickCount == 2 { onDoubleClick?() } else { super.mouseDown(with: event) }
+    }
 
     func configure(icon: NSImage?, title: String, detail: String?, busy: Bool) {
         imageView.image = icon

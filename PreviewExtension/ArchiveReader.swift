@@ -121,6 +121,70 @@ struct ArchiveReader: Sendable {
         }
     }
 
+    /// What to do next with an entry whose start is being read.
+    enum StartDecision {
+        /// Read until there are at least this many bytes.
+        case needMore(Int)
+        /// Skip the rest of the entry.
+        case done
+        /// Write the entry to its target URL after all.
+        case writeFile
+    }
+
+    /// Writes each target file entry to its URL in a single pass over the archive (one pass, rather
+    /// than one per entry, matters for compressed tarballs), calling `didWrite` after each one. Each
+    /// file appears at its URL only once complete. Entries over `maxBytes`, or that can't be read,
+    /// are skipped. Stops early if `isCancelled` becomes true.
+    ///
+    /// Entries in `startsOf` are instead read into memory a bit at a time, and passed to `readStart`
+    /// (with whether that's the whole entry) until it decides; past `maxStartBytes`, they're written.
+    func extractFiles(_ targets: [Target], of listing: ArchiveListing, maxBytes: Int64,
+                      startsOf startEntries: Set<Int> = [], maxStartBytes: Int = 0,
+                      readStart: (Target, Data, _ isWhole: Bool) -> StartDecision = { _, _, _ in .writeFile },
+                      isCancelled: () -> Bool, didWrite: (Target) -> Void) throws {
+        let a = try open(raw: listing.isRaw)
+        defer { archive_read_free(a) }
+
+        let fm = FileManager.default
+        var pending = Dictionary(targets.map { ($0.entry.index, $0) }, uniquingKeysWith: { $1 })
+        var entry: OpaquePointer?
+        var index = 0
+        while !pending.isEmpty, !isCancelled() {
+            let r = archive_read_next_header(a, &entry)
+            if r == ARCHIVE_EOF { break }
+            if r < ARCHIVE_WARN { throw error(a) }
+            defer { index += 1 }
+            guard let target = pending.removeValue(forKey: index) else { continue }
+
+            var start = Data()
+            var isWhole = false
+            if startEntries.contains(index) {
+                do {
+                    guard let read = try readEntryStart(a, of: target, maxBytes: maxStartBytes, isCancelled: isCancelled, decide: readStart)
+                    else { continue }
+                    (start, isWhole) = read
+                } catch {
+                    continue
+                }
+            }
+            let folder = target.url.deletingLastPathComponent()
+            let partial = folder.appendingPathComponent(".partial-\(UUID().uuidString)")
+            do {
+                try fm.createDirectory(at: folder, withIntermediateDirectories: true)
+                guard try writeData(a, to: partial, startingWith: start, readsRest: !isWhole, maxBytes: maxBytes,
+                                    isCancelled: isCancelled) else {
+                    try? fm.removeItem(at: partial)
+                    return
+                }
+                // A preview may have extracted the same entry meanwhile; either copy will do.
+                if (try? fm.moveItem(at: partial, to: target.url)) == nil { try? fm.removeItem(at: partial) }
+                didWrite(target)
+            } catch {
+                try? fm.removeItem(at: partial)
+            }
+        }
+    }
+
     /// Reads the entries whose paths pass `include` into memory in a single pass, e.g. the XML
     /// parts of an .xlsx file (which is itself a zip archive).
     func readEntries(maxTotalBytes: Int, where include: (String) -> Bool) throws -> [String: Data] {
@@ -158,15 +222,50 @@ struct ArchiveReader: Sendable {
     // MARK: - Private
 
     /// Writes the data of the current entry to `destination`. Returns false if `isCancelled` became true.
-    private func writeData(_ a: OpaquePointer, to destination: URL, maxBytes: Int64, isCancelled: () -> Bool) throws -> Bool {
+    /// Reads the start of the current entry for `decide`. Returns nil once it's done with the entry
+    /// (or if cancelled), or what's been read if the entry is to be written, and whether that's all of it.
+    private func readEntryStart(_ a: OpaquePointer, of target: Target, maxBytes: Int, isCancelled: () -> Bool,
+                           decide: (Target, Data, Bool) -> StartDecision) throws -> (Data, isWhole: Bool)? {
+        let bufferSize = 256 * 1024
+        let buffer = UnsafeMutableRawPointer.allocate(byteCount: bufferSize, alignment: 1)
+        defer { buffer.deallocate() }
+        var data = Data()
+        var isWhole = false
+        var wanted = 0
+        while true {
+            // Read at least one more buffer, then until there's as much as was asked for.
+            repeat {
+                if isCancelled() { return nil }
+                let n = archive_read_data(a, buffer, bufferSize)
+                if n < 0 { throw error(a) }
+                if n == 0 { isWhole = true; break }
+                data.append(buffer.assumingMemoryBound(to: UInt8.self), count: n)
+            } while data.count < wanted
+            switch decide(target, data, isWhole) {
+            case .done:
+                return nil
+            case .writeFile:
+                return (data, isWhole)
+            case .needMore(let count):
+                if isWhole || data.count >= maxBytes { return (data, isWhole) }
+                wanted = min(count, maxBytes)
+            }
+        }
+    }
+
+    /// Writes `start` and then (if `readsRest`) the rest of the current entry to `destination`.
+    private func writeData(_ a: OpaquePointer, to destination: URL, startingWith start: Data = Data(), readsRest: Bool = true,
+                           maxBytes: Int64, isCancelled: () -> Bool) throws -> Bool {
         FileManager.default.createFile(atPath: destination.path, contents: nil)
         let handle = try FileHandle(forWritingTo: destination)
         defer { try? handle.close() }
+        try handle.write(contentsOf: start)
+        guard readsRest else { return true }
 
         let bufferSize = 256 * 1024
         let buffer = UnsafeMutableRawPointer.allocate(byteCount: bufferSize, alignment: 1)
         defer { buffer.deallocate() }
-        var written: Int64 = 0
+        var written = Int64(start.count)
         while true {
             if isCancelled() { return false }
             let n = archive_read_data(a, buffer, bufferSize)

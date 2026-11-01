@@ -1,5 +1,6 @@
 import AVKit
 import Cocoa
+import CoreImage
 import PDFKit
 import QuickLookThumbnailing
 import UniformTypeIdentifiers
@@ -22,7 +23,7 @@ enum EntryPreview {
         if type.conforms(to: .pdf) {
             return pdfView(url)
         }
-        if type.conforms(to: .image), let view = imageView(url) {
+        if type.conforms(to: .image), let view = await imageView(url) {
             return view
         }
         if type.conforms(to: .font) || FontPreviewView.fileExtensions.contains(url.pathExtension.lowercased()),
@@ -59,8 +60,17 @@ enum EntryPreview {
         view is AVPlayerView
     }
 
-    /// Releases resources held by a preview view (e.g. stops playback).
+    /// Calls `action` when a preview that's only a picture of the file (an image, or the Quick Look
+    /// thumbnail standing in for one) is double-clicked. Other previews keep their own double-click
+    /// (selecting a word, say).
+    static func onDoubleClick(in view: NSView, perform action: @escaping () -> Void) {
+        (view as? PreviewImageView)?.onDoubleClick = action
+        for subview in view.subviews { onDoubleClick(in: subview, perform: action) }
+    }
+
+    /// Releases resources held by a preview view (e.g. stops playback or thumbnail extraction).
     static func tearDown(_ view: NSView) {
+        (view as? FolderView)?.cancel()
         if let player = view as? AVPlayerView {
             player.player?.pause()
             player.player = nil
@@ -78,14 +88,65 @@ enum EntryPreview {
         return view
     }
 
-    private static func imageView(_ url: URL) -> NSView? {
+    private static func imageView(_ url: URL) async -> NSView? {
+        let maxPixelSize = screenPixelSize
+        let decoded = await Task.detached(priority: .userInitiated) {
+            CGImageSourceCreateWithURL(url as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary)
+                .flatMap { decodeForScreen($0, maxPixelSize: maxPixelSize) }
+        }.value
+        if let decoded { return imageView(NSImage(cgImage: decoded.image, size: decoded.size)) }
+        // Animated images, which NSImageView animates, and types ImageIO can't read (e.g. SVG).
         guard let image = NSImage(contentsOf: url) else { return nil }
-        let view = NSImageView()
+        return imageView(image)
+    }
+
+    /// The JPEG preview a camera RAW file embeds, shown with the RAW's orientation (if given).
+    static func imageView(jpeg: Data, orientation: Int?) async -> NSView? {
+        let maxPixelSize = screenPixelSize
+        let decoded = await Task.detached(priority: .userInitiated) {
+            CGImageSourceCreateWithData(jpeg as CFData, nil)
+                .flatMap { decodeForScreen($0, maxPixelSize: maxPixelSize, orientation: orientation) }
+        }.value
+        return decoded.map { imageView(NSImage(cgImage: $0.image, size: $0.size)) }
+    }
+
+    private static func imageView(_ image: NSImage) -> NSView {
+        let view = PreviewImageView()
         view.image = image
         view.imageScaling = .scaleProportionallyDown
         view.animates = true
         view.isEditable = false
         return padded(view, inset: 12)
+    }
+
+    /// The longest side of the largest screen, in pixels: the most an image is ever shown at.
+    static var screenPixelSize: CGFloat {
+        NSScreen.screens.map { max($0.frame.width, $0.frame.height) * $0.backingScaleFactor }.max() ?? 4096
+    }
+
+    /// A still image decoded (off the main thread) to at most `maxPixelSize`, and its size in points
+    /// as NSImage would give it. Decoding it ahead matters: NSImage decodes when first drawn, on the
+    /// main thread, and a camera RAW file takes seconds to decode in full. With `orientation`, the
+    /// image is turned that way (a RAW file's, for the preview it embeds), else by its own.
+    /// Nil for animated images and types ImageIO can't read.
+    nonisolated private static func decodeForScreen(_ source: CGImageSource, maxPixelSize: CGFloat,
+                                                    orientation: Int? = nil) -> (image: CGImage, size: CGSize)? {
+        guard CGImageSourceGetCount(source) == 1 else { return nil }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: orientation == nil,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
+        ]
+        guard var image = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { return nil }
+        if let orientation, orientation != 1, let turn = CGImagePropertyOrientation(rawValue: UInt32(orientation)) {
+            let turned = CIImage(cgImage: image).oriented(turn)
+            guard let rendered = CIContext().createCGImage(turned, from: turned.extent) else { return nil }
+            image = rendered
+        }
+        let points = source.longestSideInPoints ?? CGFloat(max(image.width, image.height))
+        let factor = points / CGFloat(max(image.width, image.height, 1))
+        return (image, CGSize(width: CGFloat(image.width) * factor, height: CGFloat(image.height) * factor))
     }
 
     private static func playerView(_ url: URL) -> NSView {
@@ -161,7 +222,7 @@ enum EntryPreview {
         guard let thumbnail = try? await QLThumbnailGenerator.shared.generateBestRepresentation(for: request) else {
             return nil
         }
-        let view = NSImageView()
+        let view = PreviewImageView()
         view.image = thumbnail.nsImage
         view.imageScaling = .scaleProportionallyDown
         return padded(view, inset: 24)
@@ -213,5 +274,18 @@ enum EntryPreview {
         view.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         view.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
         return container
+    }
+}
+
+/// An image preview that reports double-clicks.
+private final class PreviewImageView: NSImageView {
+    var onDoubleClick: (() -> Void)?
+
+    override func mouseDown(with event: NSEvent) {
+        if event.clickCount == 2, let onDoubleClick {
+            onDoubleClick()
+        } else {
+            super.mouseDown(with: event)
+        }
     }
 }

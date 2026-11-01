@@ -11,10 +11,12 @@
 		0FF364D1238E8A9A4ADC375D /* FontPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4016F09D45CBC37D49FEC2C /* FontPreviewView.swift */; };
 		168440A6D2B061108AAC5D7E /* MarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E6C32CD06E2F73D6CACD56 /* MarkdownView.swift */; };
 		179F52BBA13EFDE684631ACE /* highlight.min.js in Resources */ = {isa = PBXBuildFile; fileRef = E1BCF5179164533477A4A3F2 /* highlight.min.js */; };
+		2CF140C87A6C094EA14B4A62 /* RawPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8029F5126F003690CD62D436 /* RawPreview.swift */; };
 		593935485D404D975D3F7468 /* QLZipApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB313ACD071403CA3BB0C45E /* QLZipApp.swift */; };
 		6C30493E03588D71F0FB6241 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 3776ABEB53D1DE12E2B59A42 /* AppIcon.icon */; };
 		730CCE4BB0F5CD14809CC466 /* EntryPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE54245091C09DF11931BB1A /* EntryPreview.swift */; };
 		7D2D0317CBEA57549B8F10BB /* ArchiveReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AD818756C3E34964D025958 /* ArchiveReader.swift */; };
+		831A1A3C0983127F7483FB1B /* FolderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C32EA4DE13FB8722C4C73E9A /* FolderView.swift */; };
 		955F616A2AD94CA93558EB13 /* highlightjs-LICENSE.txt in Resources */ = {isa = PBXBuildFile; fileRef = AF04068D589E1FAD97E9DB41 /* highlightjs-LICENSE.txt */; };
 		9B916C95D8226621947F53F6 /* SpreadsheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7F7126312F34B8586E808DC /* SpreadsheetView.swift */; };
 		AC8AB0FA712F74F395B6E583 /* Spreadsheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7BC98C3CC3DB221B95FFC6F /* Spreadsheet.swift */; };
@@ -61,6 +63,7 @@
 		6B8E24ED901131748C44083E /* SyntaxTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyntaxTheme.swift; sourceTree = "<group>"; };
 		7646AA90BCB72E43B022F984 /* libarchive.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libarchive.tbd; path = usr/lib/libarchive.tbd; sourceTree = SDKROOT; };
 		7F5F5957BABE195BE0563369 /* QLZipPreview.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = QLZipPreview.entitlements; sourceTree = "<group>"; };
+		8029F5126F003690CD62D436 /* RawPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RawPreview.swift; sourceTree = "<group>"; };
 		8A29C5051AF0A01A1CB146B0 /* Quartz.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Quartz.framework; path = System/Library/Frameworks/Quartz.framework; sourceTree = SDKROOT; };
 		94E41FE042CDFBDE9329B170 /* Uncompressor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Uncompressor.swift; sourceTree = "<group>"; };
 		9B1D88BBF190C90C0AD3D7F7 /* QLZip.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = QLZip.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -71,6 +74,7 @@
 		AF04068D589E1FAD97E9DB41 /* highlightjs-LICENSE.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "highlightjs-LICENSE.txt"; sourceTree = "<group>"; };
 		B2EF92D2A3ED56A25C308E7D /* SyntaxHighlighter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyntaxHighlighter.swift; sourceTree = "<group>"; };
 		B495B7F801F601823962E1B4 /* ArchiveTree.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchiveTree.swift; sourceTree = "<group>"; };
+		C32EA4DE13FB8722C4C73E9A /* FolderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderView.swift; sourceTree = "<group>"; };
 		C7BC98C3CC3DB221B95FFC6F /* Spreadsheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Spreadsheet.swift; sourceTree = "<group>"; };
 		C7F7126312F34B8586E808DC /* SpreadsheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpreadsheetView.swift; sourceTree = "<group>"; };
 		D33A3D0F8FE4828FF28E6EDA /* PreviewViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewViewController.swift; sourceTree = "<group>"; };
@@ -149,11 +153,13 @@
 				4AD818756C3E34964D025958 /* ArchiveReader.swift */,
 				B495B7F801F601823962E1B4 /* ArchiveTree.swift */,
 				EE54245091C09DF11931BB1A /* EntryPreview.swift */,
+				C32EA4DE13FB8722C4C73E9A /* FolderView.swift */,
 				F4016F09D45CBC37D49FEC2C /* FontPreviewView.swift */,
 				3E14D43F940B8E36E578F13F /* Info.plist */,
 				E7E6C32CD06E2F73D6CACD56 /* MarkdownView.swift */,
 				D33A3D0F8FE4828FF28E6EDA /* PreviewViewController.swift */,
 				7F5F5957BABE195BE0563369 /* QLZipPreview.entitlements */,
+				8029F5126F003690CD62D436 /* RawPreview.swift */,
 				C7BC98C3CC3DB221B95FFC6F /* Spreadsheet.swift */,
 				C7F7126312F34B8586E808DC /* SpreadsheetView.swift */,
 				B2EF92D2A3ED56A25C308E7D /* SyntaxHighlighter.swift */,
@@ -299,9 +305,11 @@
 				7D2D0317CBEA57549B8F10BB /* ArchiveReader.swift in Sources */,
 				E113A27CDC6795AD511A4B02 /* ArchiveTree.swift in Sources */,
 				730CCE4BB0F5CD14809CC466 /* EntryPreview.swift in Sources */,
+				831A1A3C0983127F7483FB1B /* FolderView.swift in Sources */,
 				0FF364D1238E8A9A4ADC375D /* FontPreviewView.swift in Sources */,
 				168440A6D2B061108AAC5D7E /* MarkdownView.swift in Sources */,
 				B315C7E0D75580F9D85B1254 /* PreviewViewController.swift in Sources */,
+				2CF140C87A6C094EA14B4A62 /* RawPreview.swift in Sources */,
 				AC8AB0FA712F74F395B6E583 /* Spreadsheet.swift in Sources */,
 				9B916C95D8226621947F53F6 /* SpreadsheetView.swift in Sources */,
 				D9CC5F8EDC85261AFDB4F421 /* SyntaxHighlighter.swift in Sources */,
@@ -376,7 +384,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = YB35Q4YF78;
@@ -398,7 +406,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.2;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -498,7 +506,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = YB35Q4YF78;
@@ -514,7 +522,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.2;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";

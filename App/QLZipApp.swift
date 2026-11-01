@@ -26,10 +26,12 @@ struct WelcomeView: View {
             InfoSection("Using QLZip") {
                 Step(symbol: "eye", title: "Preview an archive",
                      detail: "Select a .zip, .tar, .tar.gz, .tar.bz2 or .tar.xz file in Finder and press Space.")
-                Step(symbol: "list.bullet.indent", title: "Look inside",
-                     detail: "Expand folders in the list and click a file to preview it.")
+                Step(symbol: "square.grid.2x2", title: "Look inside",
+                     detail: "Click a folder in the list to see what’s in it, with thumbnails for photos. Click a file to preview it.")
                 Step(symbol: "arrow.down.doc", title: "Uncompress only what you need",
-                     detail: "Double-click an item, or Control-click a selection, then choose a folder.")
+                     detail: "Double-click an item, or Control-click it and choose Uncompress, then pick a folder. Select several in the list to uncompress them together.")
+                Step(symbol: "keyboard", title: "Keys go to Finder, not the preview",
+                     detail: "While Quick Look is open, Finder gets your key presses: the arrow keys move to the next file in Finder, not through the list. Use the mouse or trackpad to browse an archive.")
             }
 
             InfoSection("If Finder shows the standard preview") {
@@ -43,9 +45,9 @@ struct WelcomeView: View {
 
             InfoSection("Uninstalling") {
                 Step(symbol: "trash", title: "Move QLZip to the Trash",
-                     detail: "Finder stops using the extension once macOS notices the app is gone, which can take until Finder relaunches or you log out.")
+                     detail: "Finder may keep using it until Finder relaunches or you log out.")
                 Step(symbol: "eye.slash", title: "Or just turn the previews off",
-                     detail: "Switch off QLZip Preview in Quick Look settings to go back to the standard preview.")
+                     detail: "Switch off QLZip Preview in Quick Look settings to get the standard preview back.")
                 HStack {
                     Spacer()
                     Button("Show QLZip in Finder") {

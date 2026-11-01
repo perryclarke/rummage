@@ -7,13 +7,15 @@ tree, and the right side previews whichever file is selected.
 Supported archives: `.zip` (and zip-based files), `.tar`, `.tar.gz`/`.tgz`, `.tar.bz2`, `.tar.xz`,
 and bare `.gz`/`.bz2`/`.xz` files. Archives are read with the system's libarchive.
 
-Browse with the mouse: Quick Look keeps keyboard focus in Finder, so ↑/↓ move between files in
-Finder rather than within the archive. (They do work in `qlmanage -p`.)
+Browse with the mouse: key presses go to Finder rather than to the preview, so ↑/↓ move between
+files in Finder instead of within the archive (and do nothing in `qlmanage -p`).
 
 ## Uncompressing items
 
-Double-click an item in the list, or Control-click it and choose **Uncompress**, then pick a
-destination folder. Folders come out with their contents. ⌘- or ⇧-click to select several items,
+Double-click an item in the list or the icon view, or Control-click it and choose **Uncompress**,
+then pick a destination folder. Double-clicking a selected item's preview does the same when the
+preview is just a picture of it (an image, a thumbnail, or its icon); in text, PDF and video previews
+a double-click keeps its usual meaning. Folders come out with their contents. ⌘- or ⇧-click to select several items,
 then Control-click the selection to uncompress them together. Existing files are never replaced
 (a numbered name like "notes 2.txt" is used instead); permissions, dates and symlinks are kept, and
 encrypted entries are skipped. Progress and the result appear under the list.
@@ -27,7 +29,7 @@ Selecting a file extracts just that entry to the extension's sandboxed temp fold
 
 | Type | Rendered with |
 | --- | --- |
-| Images (PNG, JPEG, HEIC, GIF, TIFF, …) | `NSImageView` |
+| Images (PNG, JPEG, HEIC, GIF, TIFF, camera RAW, …) | `NSImageView` |
 | PDF | `PDFView` |
 | Text, source code, JSON, extension-less text files | monospaced text view, syntax-colored (see below) |
 | Markdown | formatted text: headings, lists, quotes, tables, syntax-colored code blocks |
@@ -42,6 +44,35 @@ inside a Quick Look extension, which is why previews are rendered natively. Entr
 1 GB and encrypted entries aren't previewed. HTML is shown as static text, without running
 scripts, so a page built by JavaScript (such as the one in a Twitter archive) would come out blank;
 QLZip shows its source instead.
+
+Images are decoded in the background, at no more than the screen's size, rather than by `NSImage`
+when first drawn, which happens on the main thread and takes seconds for a camera RAW file. For a
+RAW file, if the JPEG preview it embeds (see below) is at least the screen's size, as in Canon CR3
+and Fuji RAF, that's shown instead, so only the start of the file is read. A spinner appears if
+extracting or opening an entry takes more than a moment.
+
+Selecting a folder, or nothing (the top of the archive), shows the folder's contents as icons, like
+Finder's icon view, with thumbnails for images. Expanding a folder with its disclosure triangle also
+selects it. As in the list, double-clicking an icon, or Control-clicking it and choosing
+**Uncompress**, uncompresses it.
+The images are extracted in a single pass over the archive, up to 400 per folder, each up to the
+1 GB preview limit. Those up to 16 MB (256 MB in all) go into the same temp folder previews use, so
+previewing one afterwards is instant; larger ones are replaced by a 2,560-pixel copy as soon as
+they're extracted, with up to 256 MB of copies, so a folder of big images doesn't fill the disk.
+
+Camera RAW files (CR3, CR2, NEF, ARW, DNG, RAF, ORF, RW2 and others) embed JPEG previews, usually
+within the first few MB of a 25–60 MB file, so for these only the start of the file is read, never
+written to disk. The container is parsed to find its largest preview: TIFF-based formats list theirs
+in their image directories, CR3 in its boxes, and RAF in its header. That gives a full-size JPEG for
+Canon CR3 and Fuji RAF (about 10% of the file read), about 1,600 pixels for Sony ARW (3%), and
+1,024 for most DNGs; the RAW's orientation is applied, since the previews don't carry it. If no
+listed preview is at least 1,024 pixels, the first 8 MB are scanned for a JPEG, and failing that the
+whole file is extracted and decoded (some DNGs, such as Lightroom Mobile's, have no preview).
+When a folder has thumbnails, a slider in its header sets the icon size, like Finder's icon size
+slider, and the setting is remembered. It goes from 32 points up to one image filling the area below
+the header, as a selected image fills the pane, and at that end follows the pane's size. As when
+selected, an image is never shown larger than its own size. Thumbnails are made only for the icons
+in view, and kept in a cache of up to 100 MB.
 
 Markdown is parsed by Foundation (`AttributedString(markdown:)`, GitHub flavored) and laid out
 with TextKit 1 text blocks and tables. Raw HTML is left out, and images show their description,
@@ -91,6 +122,18 @@ If Finder still shows the built-in archive preview, enable **QLZip Preview** in
 System Settings › General › Login Items & Extensions › Quick Look. Running `qlmanage -p some.zip`
 is a quick way to test without Finder.
 
+To try it on a range of files, `./scripts/make-test-archive.sh` builds
+`build/QLZip Test Archive.zip`: images (including a sideways JPEG that should show upright),
+documents, spreadsheets, code, text in odd encodings and with odd names, fonts, audio, video, and
+archive edge cases (a symlink, a nested zip, an encrypted entry, empty and deep folders). Its
+README.md lists what each preview should show. Most files are generated; the rest come from macOS.
+Camera RAW files aren't included unless given with `--raw` (files, or folders to take them from),
+and another output path can be given last:
+
+```sh
+./scripts/make-test-archive.sh --raw ~/Pictures/RAW\ samples ~/Downloads/QLZip\ Test\ Archive.zip
+```
+
 ## Releasing
 
 ```sh
@@ -139,6 +182,8 @@ removes (with `sudo` if QLZip was installed for all users).
 - `PreviewExtension/PreviewViewController.swift` – split view UI, selection, extraction
 - `PreviewExtension/Uncompressor.swift` – copies selected items into a folder the user chooses
 - `PreviewExtension/EntryPreview.swift` – per-type preview views
+- `PreviewExtension/FolderView.swift` – a folder's contents as icons, with thumbnails for images
+- `PreviewExtension/RawPreview.swift` – finds the JPEG preview in the start of a camera RAW file
 - `PreviewExtension/Spreadsheet.swift` – spreadsheet model and CSV/TSV parser
 - `PreviewExtension/XLSXReader.swift` – reads `.xlsx` workbooks, including Excel number formats
 - `PreviewExtension/SpreadsheetView.swift` – the spreadsheet grid
@@ -148,3 +193,4 @@ removes (with `sudo` if QLZip was installed for all users).
 - `PreviewExtension/SyntaxTheme.swift` – colors for each highlight.js scope
 - `PreviewExtension/Vendor/highlightjs/` – vendored highlight.js bundle and license
 - `CArchive/` – declarations for the libarchive functions used (the SDK ships the library but not its headers)
+- `scripts/make-test-archive.sh` – builds a test archive of many file types; its generators are in `scripts/test-archive/`
