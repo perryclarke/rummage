@@ -2,9 +2,9 @@ import AppKit
 import SwiftUI
 
 @main
-struct QLZipApp: App {
+struct RummageApp: App {
     var body: some Scene {
-        Window("QLZip", id: "main") {
+        Window("Rummage", id: "main") {
             WelcomeView()
         }
         .windowResizability(.contentSize)
@@ -12,7 +12,7 @@ struct QLZipApp: App {
     }
 }
 
-/// The app's only window. QLZip.app exists to carry the Quick Look extension, so this just
+/// The app's only window. Rummage.app exists to carry the Quick Look extension, so this just
 /// confirms the install and explains how to use, enable and remove it.
 struct WelcomeView: View {
     /// Opens System Settings › General › Login Items & Extensions with the Quick Look list showing.
@@ -23,7 +23,7 @@ struct WelcomeView: View {
         VStack(alignment: .leading, spacing: 20) {
             header
 
-            InfoSection("Using QLZip") {
+            InfoSection("Using Rummage") {
                 Step(symbol: "eye", title: "Preview an archive",
                      detail: "Select a .zip, .tar, .tar.gz, .tar.bz2 or .tar.xz file in Finder and press Space.")
                 Step(symbol: "square.grid.2x2", title: "Look inside",
@@ -35,7 +35,7 @@ struct WelcomeView: View {
             }
 
             InfoSection("If Finder shows the standard preview") {
-                Step(symbol: "switch.2", title: "Turn on QLZip Preview",
+                Step(symbol: "switch.2", title: "Turn on Rummage Preview",
                      detail: "It’s in System Settings › General › Login Items & Extensions › Quick Look.")
                 HStack {
                     Spacer()
@@ -44,13 +44,13 @@ struct WelcomeView: View {
             }
 
             InfoSection("Uninstalling") {
-                Step(symbol: "trash", title: "Move QLZip to the Trash",
+                Step(symbol: "trash", title: "Move Rummage to the Trash",
                      detail: "Finder may keep using it until Finder relaunches or you log out.")
                 Step(symbol: "eye.slash", title: "Or just turn the previews off",
-                     detail: "Switch off QLZip Preview in Quick Look settings to get the standard preview back.")
+                     detail: "Switch off Rummage Preview in Quick Look settings to get the standard preview back.")
                 HStack {
                     Spacer()
-                    Button("Show QLZip in Finder") {
+                    Button("Show Rummage in Finder") {
                         NSWorkspace.shared.activateFileViewerSelecting([Bundle.main.bundleURL])
                     }
                 }
@@ -70,7 +70,7 @@ struct WelcomeView: View {
                 .resizable()
                 .frame(width: 64, height: 64)
             VStack(alignment: .leading, spacing: 3) {
-                Text("QLZip is installed")
+                Text("Rummage is installed")
                     .font(.title2.bold())
                 Text("Browse archives in Quick Look without extracting them.")
                     .foregroundStyle(.secondary)

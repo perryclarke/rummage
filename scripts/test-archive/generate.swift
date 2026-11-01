@@ -107,7 +107,7 @@ do {
     let url = root.appendingPathComponent("Documents/Sample Document.pdf")
     try! FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
     var box = CGRect(x: 0, y: 0, width: 612, height: 792)
-    let pdf = CGContext(url as CFURL, mediaBox: &box, [kCGPDFContextTitle: "QLZip Sample Document"] as CFDictionary)!
+    let pdf = CGContext(url as CFURL, mediaBox: &box, [kCGPDFContextTitle: "Rummage Sample Document"] as CFDictionary)!
     let body = """
     This PDF has three pages, so the preview should let you scroll through them. Page one is text, \
     page two has shapes and a table, and page three has a picture.
@@ -121,7 +121,7 @@ do {
         pdf.beginPDFPage(nil)
         text(pdf, title, size: 30, at: CGPoint(x: 306, y: 720), color: color(0.1, 0.1, 0.1))
         draw(pdf)
-        text(pdf, "QLZip test archive", size: 10, at: CGPoint(x: 306, y: 30), color: .black, bold: false)
+        text(pdf, "Rummage test archive", size: 10, at: CGPoint(x: 306, y: 30), color: .black, bold: false)
         pdf.endPDFPage()
     }
     page("Page 1: Text") { ctx in
@@ -172,7 +172,7 @@ do {
         let t = CGFloat(i) / 120
         ctx.setFillColor(NSColor(hue: t, saturation: 0.5, brightness: 0.35, alpha: 1).cgColor); ctx.fill(CGRect(x: 0, y: 0, width: w, height: h))
         ctx.setFillColor(.white); ctx.fillEllipse(in: CGRect(x: 100 + t * 980, y: 300 + 150 * sin(t * 4 * .pi), width: 100, height: 100))
-        text(ctx, String(format: "QLZip test clip  %.1f s", Double(i) / 30), size: 44, at: CGPoint(x: 640, y: 60))
+        text(ctx, String(format: "Rummage test clip  %.1f s", Double(i) / 30), size: 44, at: CGPoint(x: 640, y: 60))
         CVPixelBufferUnlockBaseAddress(buffer!, [])
         adaptor.append(buffer!, withPresentationTime: CMTime(value: CMTimeValue(i), timescale: 30))
     }

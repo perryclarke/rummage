@@ -1,4 +1,4 @@
-# QLZip
+# Rummage
 
 A Quick Look extension for macOS that lets you browse archives without extracting them.
 Select an archive in Finder and press Space: the left side shows the contents as an expandable
@@ -21,7 +21,7 @@ then Control-click the selection to uncompress them together. Existing files are
 encrypted entries are skipped. Progress and the result appear under the list.
 
 By default Quick Look opens the whole archive in Archive Utility when a preview is double-clicked;
-QLZip turns that off inside its own preview so that a double-click affects only the item clicked.
+Rummage turns that off inside its own preview so that a double-click affects only the item clicked.
 
 ## Previews
 
@@ -43,7 +43,7 @@ Selecting a file extracts just that entry to the extension's sandboxed temp fold
 inside a Quick Look extension, which is why previews are rendered natively. Entries over
 1 GB and encrypted entries aren't previewed. HTML is shown as static text, without running
 scripts, so a page built by JavaScript (such as the one in a Twitter archive) would come out blank;
-QLZip shows its source instead.
+Rummage shows its source instead.
 
 Images are decoded in the background, at no more than the screen's size, rather than by `NSImage`
 when first drawn, which happens on the main thread and takes seconds for a camera RAW file. For a
@@ -82,13 +82,13 @@ plain text.
 
 Big compressed tarballs have to be decompressed in full just to list them; if that takes more
 than 0.4 s the preview shows "Reading archive…" until the list is ready. Files that iCloud has
-evicted from the Mac are a different case: Finder downloads them before it contacts QLZip at all,
-so QLZip can't show progress for them. Choosing **Keep Downloaded** on a file or folder in Finder
+evicted from the Mac are a different case: Finder downloads them before it contacts Rummage at all,
+so Rummage can't show progress for them. Choosing **Keep Downloaded** on a file or folder in Finder
 avoids the wait.
 
 ## Spreadsheets
 
-An `.xlsx` file is itself a zip of XML, which QLZip reads with libarchive and `XMLParser`. Cells
+An `.xlsx` file is itself a zip of XML, which Rummage reads with libarchive and `XMLParser`. Cells
 show the values Excel last saved (formulas aren't recalculated) using each cell's number format:
 dates, times, durations, percentages, currency and thousands separators. Bold text and column
 widths are kept; colors, borders, merged cells, charts and images aren't. Hidden sheets are skipped.
@@ -115,15 +115,15 @@ Requires Xcode 26+ and [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew 
 The Xcode project is generated from `project.yml`; edit that, not the `.xcodeproj`.
 
 ```sh
-./scripts/install.sh   # build, install to ~/Applications/QLZip.app, register the extension
+./scripts/install.sh   # build, install to ~/Applications/Rummage.app, register the extension
 ```
 
-If Finder still shows the built-in archive preview, enable **QLZip Preview** in
+If Finder still shows the built-in archive preview, enable **Rummage Preview** in
 System Settings › General › Login Items & Extensions › Quick Look. Running `qlmanage -p some.zip`
 is a quick way to test without Finder.
 
 To try it on a range of files, `./scripts/make-test-archive.sh` builds
-`build/QLZip Test Archive.zip`: images (including a sideways JPEG that should show upright),
+`build/Rummage Test Archive.zip`: images (including a sideways JPEG that should show upright),
 documents, spreadsheets, code, text in odd encodings and with odd names, fonts, audio, video, and
 archive edge cases (a symlink, a nested zip, an encrypted entry, empty and deep folders). Its
 README.md lists what each preview should show. Most files are generated; the rest come from macOS.
@@ -131,17 +131,17 @@ Camera RAW files aren't included unless given with `--raw` (files, or folders to
 and another output path can be given last:
 
 ```sh
-./scripts/make-test-archive.sh --raw ~/Pictures/RAW\ samples ~/Downloads/QLZip\ Test\ Archive.zip
+./scripts/make-test-archive.sh --raw ~/Pictures/RAW\ samples ~/Downloads/Rummage\ Test\ Archive.zip
 ```
 
 ## Releasing
 
 ```sh
-./scripts/release.sh              # Developer ID–signed, notarized build/release/QLZip-<version>.dmg
+./scripts/release.sh              # Developer ID–signed, notarized build/release/Rummage-<version>.dmg
 ./scripts/release.sh --unsigned   # the same disk image signed for this Mac only, to try the installer
 ```
 
-The disk image holds `Install QLZip.pkg`. It installs QLZip.app in /Applications, or in
+The disk image holds `Install Rummage.pkg`. It installs Rummage.app in /Applications, or in
 ~/Applications with "Install for me only" (no administrator password needed), and registers the
 Quick Look extension for the user installing it, so previews work without opening the app first.
 Signed releases need "Developer ID Application" and "Developer ID Installer" certificates and a
@@ -152,29 +152,29 @@ the extension, the package and the disk image's name all take it from there.
 
 ## Uninstalling
 
-Drag QLZip.app to the Trash from /Applications or ~/Applications, wherever it was installed.
+Drag Rummage.app to the Trash from /Applications or ~/Applications, wherever it was installed.
 Finder stops using the extension once macOS notices the app is gone, which can take until Finder
 relaunches or you log out. To turn the previews off without uninstalling, switch off
-**QLZip Preview** in System Settings › General › Login Items & Extensions › Quick Look.
+**Rummage Preview** in System Settings › General › Login Items & Extensions › Quick Look.
 
 To remove it right away from Terminal (for an install in /Applications, use that path and `sudo rm`):
 
 ```sh
-app=~/Applications/QLZip.app
-pluginkit -r "$app/Contents/PlugIns/QLZipPreview.appex"
+app=~/Applications/Rummage.app
+pluginkit -r "$app/Contents/PlugIns/RummagePreview.appex"
 /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -u "$app"
 rm -rf "$app"
 qlmanage -r && qlmanage -r cache
 ```
 
-Afterwards, the sandbox folders `~/Library/Containers/com.perryclarke.QLZip` and
-`~/Library/Containers/com.perryclarke.QLZip.Preview` can be deleted; they hold only preview temp
-files. The installer package also leaves a receipt, which `pkgutil --forget com.perryclarke.QLZip`
-removes (with `sudo` if QLZip was installed for all users).
+Afterwards, the sandbox folders `~/Library/Containers/com.perryclarke.Rummage` and
+`~/Library/Containers/com.perryclarke.Rummage.Preview` can be deleted; they hold only preview temp
+files. The installer package also leaves a receipt, which `pkgutil --forget com.perryclarke.Rummage`
+removes (with `sudo` if Rummage was installed for all users).
 
 ## Layout
 
-- `App/` – host app (Quick Look extensions must ship inside an app); its window explains how to use, enable and uninstall QLZip
+- `App/` – host app (Quick Look extensions must ship inside an app); its window explains how to use, enable and uninstall Rummage
 - `App/AppIcon.icon` – the app icon, an Icon Composer document (open it in Icon Composer, which ships with Xcode, to edit)
 - `Installer/` – installer package post-install script and conclusion page (used by `release.sh`)
 - `PreviewExtension/ArchiveReader.swift` – libarchive wrapper: listing and single-entry extraction

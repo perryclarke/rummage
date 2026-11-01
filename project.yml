@@ -1,4 +1,4 @@
-name: QLZip
+name: Rummage
 options:
   bundleIdPrefix: com.perryclarke
   deploymentTarget:
@@ -18,31 +18,31 @@ settings:
     DEAD_CODE_STRIPPING: YES
 
 targets:
-  QLZip:
+  Rummage:
     type: application
     platform: macOS
     sources: [App]
     dependencies:
-      - target: QLZipPreview
+      - target: RummagePreview
     info:
       path: App/Info.plist
       properties:
-        CFBundleDisplayName: QLZip
+        CFBundleDisplayName: Rummage
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSApplicationCategoryType: public.app-category.utilities
         NSHumanReadableCopyright: "© 2026 Perry Clarke"
     entitlements:
-      path: App/QLZip.entitlements
+      path: App/Rummage.entitlements
       properties:
         com.apple.security.app-sandbox: true
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.perryclarke.QLZip
+        PRODUCT_BUNDLE_IDENTIFIER: com.perryclarke.Rummage
         GENERATE_INFOPLIST_FILE: NO
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
 
-  QLZipPreview:
+  RummagePreview:
     type: app-extension
     platform: macOS
     sources:
@@ -55,7 +55,7 @@ targets:
     info:
       path: PreviewExtension/Info.plist
       properties:
-        CFBundleDisplayName: QLZip Preview
+        CFBundleDisplayName: Rummage Preview
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSExtension:
@@ -77,12 +77,12 @@ targets:
               - org.tukaani.tar-xz-archive
               - public.xz-archive
     entitlements:
-      path: PreviewExtension/QLZipPreview.entitlements
+      path: PreviewExtension/RummagePreview.entitlements
       properties:
         com.apple.security.app-sandbox: true
         com.apple.security.files.user-selected.read-write: true
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.perryclarke.QLZip.Preview
+        PRODUCT_BUNDLE_IDENTIFIER: com.perryclarke.Rummage.Preview
         GENERATE_INFOPLIST_FILE: NO
         SWIFT_INCLUDE_PATHS: $(SRCROOT)/CArchive

@@ -1,19 +1,19 @@
 #!/bin/zsh
-# Build a zip with a sampling of file types and edge cases for trying QLZip: images, camera RAW
+# Build a zip with a sampling of file types and edge cases for trying Rummage: images, camera RAW
 # files, documents, spreadsheets, code, text in odd encodings, fonts, media, a symlink, a nested zip,
 # an encrypted entry and more. Its README.md says what each preview should show.
 #
 # usage: scripts/make-test-archive.sh [--raw FILE_OR_FOLDER]... [OUTPUT.zip]
 #   --raw   camera RAW files to include, or a folder to take them from (including its subfolders);
 #           without any, the archive has no RAW folder
-#   OUTPUT  where to write the archive (default: build/QLZip Test Archive.zip)
+#   OUTPUT  where to write the archive (default: build/Rummage Test Archive.zip)
 set -euo pipefail
 
 cd "${0:A:h}/.."
 export DEVELOPER_DIR="${DEVELOPER_DIR:-$(ls -d /Applications/Xcode*.app 2>/dev/null | sort -V | tail -1)/Contents/Developer}"
 
 raws=()
-output="build/QLZip Test Archive.zip"
+output="build/Rummage Test Archive.zip"
 while (( $# )); do
     case $1 in
         --raw) raws+=("$2"); shift 2 ;;
@@ -24,9 +24,9 @@ done
 output=${output:A}
 tools=$PWD/scripts/test-archive
 
-work=$(mktemp -d -t qlzip-test-archive)
+work=$(mktemp -d -t rummage-test-archive)
 trap 'rm -rf "$work"' EXIT
-name="QLZip Test Archive"
+name="Rummage Test Archive"
 root="$work/$name"
 mkdir -p "$root"
 
@@ -72,7 +72,7 @@ cp "/System/Library/Fonts/Avenir Next.ttc" "Fonts/Avenir Next (collection).ttc"
 
 # Audio.
 say -o Media/speech.m4a --file-format=m4af --data-format=aac \
-    "This is a test recording for the QLZip test archive. If you can hear this, audio previews work."
+    "This is a test recording for the Rummage test archive. If you can hear this, audio previews work."
 afconvert -f WAVE -d LEI16 Media/speech.m4a Media/speech.wav
 
 # A document only Quick Look's thumbnail can show, if Numbers is installed.
@@ -93,7 +93,7 @@ mkdir -p "${output:h}"
 rm -f "$output"
 zip -r -y -X -q "$output" "$name" -x '*.DS_Store'
 # Added on its own with a password, so that only this entry is encrypted.
-echo "This entry is encrypted, so it can't be previewed. The password is qlzip." > "$name/Other/secret (encrypted).txt"
-zip -X -q -P qlzip "$output" "$name/Other/secret (encrypted).txt"
+echo "This entry is encrypted, so it can't be previewed. The password is rummage." > "$name/Other/secret (encrypted).txt"
+zip -X -q -P rummage "$output" "$name/Other/secret (encrypted).txt"
 
 echo "Made $output ($(du -h "$output" | cut -f1 | tr -d ' '), $(zipinfo -1 "$output" | grep -cv '/$') files)"

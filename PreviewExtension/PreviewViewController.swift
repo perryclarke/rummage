@@ -19,7 +19,7 @@ final class PreviewViewController: NSViewController, QLPreviewingController {
     private let messageView = MessageView()
 
     private let workDirectory = FileManager.default.temporaryDirectory
-        .appendingPathComponent("QLZip-\(UUID().uuidString)", isDirectory: true)
+        .appendingPathComponent("Rummage-\(UUID().uuidString)", isDirectory: true)
     private var extractionToken: CancellationToken?
     private var didSetInitialDivider = false
     /// Set when a player was taken down because the preview left the screen.
@@ -546,7 +546,7 @@ final class PreviewViewController: NSViewController, QLPreviewingController {
         let fm = FileManager.default
         let cutoff = Date().addingTimeInterval(-3600)
         let dirs = (try? fm.contentsOfDirectory(at: fm.temporaryDirectory, includingPropertiesForKeys: [.contentModificationDateKey])) ?? []
-        for dir in dirs where dir.lastPathComponent.hasPrefix("QLZip-") {
+        for dir in dirs where dir.lastPathComponent.hasPrefix("Rummage-") {
             let modified = (try? dir.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
             if let modified, modified < cutoff {
                 try? fm.removeItem(at: dir)

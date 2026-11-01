@@ -1,9 +1,9 @@
 #!/bin/sh
-# Registers the Quick Look extension for the person installing QLZip, so archives preview in
+# Registers the Quick Look extension for the person installing Rummage, so archives preview in
 # Finder without opening the app first. $2 is the install location: /Applications for an install
 # for all users (this script then runs as root), ~/Applications for "Install for me only".
 
-app="$2/QLZip.app"
+app="$2/Rummage.app"
 [ -d "$app" ] || exit 0
 lsregister=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
 
@@ -24,8 +24,8 @@ as_user() {
 as_user /bin/sh -c '
     sleep 5
     "$0" -f -R "$1"
-    pluginkit -a "$1/Contents/PlugIns/QLZipPreview.appex"
-    pluginkit -e use -i com.perryclarke.QLZip.Preview
+    pluginkit -a "$1/Contents/PlugIns/RummagePreview.appex"
+    pluginkit -e use -i com.perryclarke.Rummage.Preview
     qlmanage -r
     qlmanage -r cache
 ' "$lsregister" "$app" >/dev/null 2>&1 &

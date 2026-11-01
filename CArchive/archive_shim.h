@@ -1,6 +1,6 @@
 // The macOS SDK ships libarchive (libarchive.tbd) but not its headers.
 // These declarations mirror the stable libarchive 3.x C API for the
-// small subset QLZip uses.
+// small subset Rummage uses.
 
 #ifndef ARCHIVE_SHIM_H
 #define ARCHIVE_SHIM_H
